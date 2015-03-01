@@ -164,19 +164,6 @@ class YXml
     parent._model.val("children").insertContents(position+1, contents)
 
   #
-  # Insert content, specified by the parameter, to the end of this element
-  # .append(content [, content])
-  #
-  append: ()->
-    for content in arguments
-      if content instanceof YXml
-        content._setParent(@)
-      else if content.constructor isnt String
-        throw new Error "Y.Xml.after expects instances of YXml or String as a parameter"
-      @_model.val("children").push(content)
-    @
-
-  #
   # Insert content, specified by the parameter, after this element
   # .after(content [, content])
   #
@@ -201,6 +188,32 @@ class YXml
     parent._model.val("children").insertContents(position, contents)
 
   #
+  # Insert content, specified by the parameter, to the end of this element
+  # .append(content [, content])
+  #
+  append: ()->
+    for content in arguments
+      if content instanceof YXml
+        content._setParent(@)
+      else if content.constructor isnt String
+        throw new Error "Y.Xml.after expects instances of YXml or String as a parameter"
+      @_model.val("children").push(content)
+    @
+
+  #
+  # Insert content, specified by the parameter, to the beginning of this element.
+  # .prepend(content [, content])
+  #
+  prepend: ()->
+    for content in arguments
+      if content instanceof YXml
+        content._setParent(@)
+      else if content.constructor isnt String
+        throw new Error "Y.Xml.after expects instances of YXml or String as a parameter"
+      @_model.val("children").insert(0, content)
+    @
+
+  #
   # Remove all child nodes of the set of matched elements from the DOM.
   # .empty()
   #
@@ -222,19 +235,6 @@ class YXml
       true
     else
       false
-
-  #
-  # Insert content, specified by the parameter, to the beginning of this element.
-  # .prepend(content [, content])
-  #
-  prepend: ()->
-    for content in arguments
-      if content instanceof YXml
-        content._setParent(@)
-      else if content.constructor isnt String
-        throw new Error "Y.Xml.after expects instances of YXml or String as a parameter"
-      @_model.val("children").insert(0, content)
-    @
 
   #
   # Remove this element from the DOM
