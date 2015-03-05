@@ -4,7 +4,7 @@
 Manage XML Elements with this type. You can create a two-way binding to a DOM Element and manipulate the DOM directly while everybody will end up with the same DOM Element.
 
 ## Use it!
-Retrieve this with bower or npm. Note: You also have to import [Y.Xml](https://github.com/rwth-acis/y-list)!
+Retrieve this with bower or npm. Note: You also have to import [Y.List](https://github.com/rwth-acis/y-list)!
 
 ##### Bower
 ```
