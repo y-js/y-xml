@@ -1,4 +1,4 @@
-var YXml, dont_proxy, initialize_proxies, proxies_are_initialized, proxy_token;
+var YXml, _proxy, dont_proxy, initialize_proxies, proxies_are_initialized, proxy_token;
 
 YXml = (function() {
   function YXml(tag_or_dom, attributes) {
@@ -7,7 +7,7 @@ YXml = (function() {
       attributes = {};
     }
     if (tag_or_dom == null) {
-
+      this._xml = {};
     } else if (tag_or_dom.constructor === String) {
       tagname = tag_or_dom;
       this._xml = {};
@@ -41,6 +41,12 @@ YXml = (function() {
       this._xml = {};
     }
   }
+
+  YXml.prototype._checkForModel = function() {
+    if (this._model == null) {
+      throw new Error("You have to put the Y." + this._name + ' instance on a shared element before you can use it! E.g. on the y object y.val("my-' + this._name + '",y' + this._name + ')');
+    }
+  };
 
   YXml.prototype._name = "Xml";
 
@@ -143,6 +149,7 @@ YXml = (function() {
 
   YXml.prototype.toString = function() {
     var child, j, len, name, ref, ref1, value, xml;
+    this._checkForModel();
     xml = "<" + this._model.val("tagname");
     ref = this.attr();
     for (name in ref) {
@@ -161,6 +168,7 @@ YXml = (function() {
 
   YXml.prototype.attr = function(name, value) {
     var attrs, c, classes, cs, j, len;
+    this._checkForModel();
     if (arguments.length > 1) {
       if (value.constructor !== String) {
         throw new Error("The attributes must be of type String!");
@@ -195,6 +203,7 @@ YXml = (function() {
 
   YXml.prototype.addClass = function(names) {
     var j, len, name, ref;
+    this._checkForModel();
     ref = names.split(" ");
     for (j = 0, len = ref.length; j < len; j++) {
       name = ref[j];
@@ -205,6 +214,7 @@ YXml = (function() {
 
   YXml.prototype.after = function() {
     var c, content, contents, j, k, len, len1, parent, position, ref;
+    this._checkForModel();
     parent = this._model.val("parent");
     if (parent == null) {
       throw new Error("This Xml Element must not have siblings! (for it does not have a parent)");
@@ -229,22 +239,9 @@ YXml = (function() {
     return parent._model.val("children").insertContents(position + 1, contents);
   };
 
-  YXml.prototype.append = function() {
-    var content, j, len;
-    for (j = 0, len = arguments.length; j < len; j++) {
-      content = arguments[j];
-      if (content instanceof YXml) {
-        content._setParent(this);
-      } else if (content.constructor !== String) {
-        throw new Error("Y.Xml.after expects instances of YXml or String as a parameter");
-      }
-      this._model.val("children").push(content);
-    }
-    return this;
-  };
-
   YXml.prototype.before = function() {
     var c, content, contents, j, k, len, len1, parent, position, ref;
+    this._checkForModel();
     parent = this._model.val("parent");
     if (parent == null) {
       throw new Error("This Xml Element must not have siblings! (for it does not have a parent)");
@@ -269,8 +266,39 @@ YXml = (function() {
     return parent._model.val("children").insertContents(position, contents);
   };
 
+  YXml.prototype.append = function() {
+    var content, j, len;
+    this._checkForModel();
+    for (j = 0, len = arguments.length; j < len; j++) {
+      content = arguments[j];
+      if (content instanceof YXml) {
+        content._setParent(this);
+      } else if (content.constructor !== String) {
+        throw new Error("Y.Xml.after expects instances of YXml or String as a parameter");
+      }
+      this._model.val("children").push(content);
+    }
+    return this;
+  };
+
+  YXml.prototype.prepend = function() {
+    var content, j, len;
+    this._checkForModel();
+    for (j = 0, len = arguments.length; j < len; j++) {
+      content = arguments[j];
+      if (content instanceof YXml) {
+        content._setParent(this);
+      } else if (content.constructor !== String) {
+        throw new Error("Y.Xml.after expects instances of YXml or String as a parameter");
+      }
+      this._model.val("children").insert(0, content);
+    }
+    return this;
+  };
+
   YXml.prototype.empty = function() {
     var child, children, j, len, ref, results;
+    this._checkForModel();
     children = this._model.val("children");
     ref = children.val();
     results = [];
@@ -286,6 +314,7 @@ YXml = (function() {
   };
 
   YXml.prototype.hasClass = function(className) {
+    this._checkForModel();
     if (this._model.val("classes").val(className) != null) {
       return true;
     } else {
@@ -293,27 +322,17 @@ YXml = (function() {
     }
   };
 
-  YXml.prototype.prepend = function() {
-    var content, j, len;
-    for (j = 0, len = arguments.length; j < len; j++) {
-      content = arguments[j];
-      if (content instanceof YXml) {
-        content._setParent(this);
-      } else if (content.constructor !== String) {
-        throw new Error("Y.Xml.after expects instances of YXml or String as a parameter");
-      }
-      this._model.val("children").insert(0, content);
+  YXml.prototype.remove = function() {
+    var parent;
+    this._checkForModel();
+    if (this._model.val("parent") != null) {
+      parent = this._model["delete"]("parent");
     }
     return this;
   };
 
-  YXml.prototype.remove = function() {
-    var parent;
-    parent = this._model["delete"]("parent");
-    return this;
-  };
-
   YXml.prototype.removeAttr = function(attrName) {
+    this._checkForModel();
     if (attrName === "class") {
       this._model.val("classes", new this._model.custom_types.Object());
     } else {
@@ -324,6 +343,7 @@ YXml = (function() {
 
   YXml.prototype.removeClass = function() {
     var className, j, len;
+    this._checkForModel();
     if (arguments.length === 0) {
       this._model.val("classes", new this._model.custom_types.Object());
     } else {
@@ -337,6 +357,7 @@ YXml = (function() {
 
   YXml.prototype.toggleClass = function() {
     var className, classes, j, len;
+    this._checkForModel();
     for (j = 0, len = arguments.length; j < len; j++) {
       className = arguments[j];
       classes = this._model.val("classes");
@@ -350,15 +371,18 @@ YXml = (function() {
   };
 
   YXml.prototype.getParent = function() {
+    this._checkForModel();
     return this._model.val("parent");
   };
 
   YXml.prototype.getChildren = function() {
+    this._checkForModel();
     return this._model.val("children").val();
   };
 
   YXml.prototype.getPosition = function() {
     var c, i, j, len, parent, ref;
+    this._checkForModel();
     parent = this._model.val("parent");
     if (parent != null) {
       ref = parent._model.val("children").val();
@@ -376,6 +400,7 @@ YXml = (function() {
 
   YXml.prototype.getDom = function() {
     var attr_name, attr_value, child, dom, i, j, len, ref, ref1, setClasses, that;
+    this._checkForModel();
     if (this._dom == null) {
       this._dom = document.createElement(this._model.val("tagname"));
       ref = this.attr();
@@ -391,7 +416,7 @@ YXml = (function() {
         } else {
           dom = child.getDom();
         }
-        this._dom.insertBefore(dom);
+        this._dom.insertBefore(dom, null);
       }
     }
     that = this;
@@ -408,10 +433,9 @@ YXml = (function() {
               newNode = document.createTextNode(event.value);
             } else {
               newNode = event.value.getDom();
-              event.value._setParent(that);
             }
             children = that._dom.childNodes;
-            if (children.length === event.position) {
+            if (children.length <= event.position) {
               rightNode = null;
             } else {
               rightNode = children[event.position];
@@ -519,24 +543,25 @@ dont_proxy = function(f) {
   return proxy_token = false;
 };
 
-initialize_proxies = function() {
-  var _proxy, f_add, f_remove, insertBefore, removeChild, replaceChild, that;
-  _proxy = function(f_name, f, source, y) {
-    var old_f;
-    if (source == null) {
-      source = Element.prototype;
+_proxy = function(f_name, f, source, y) {
+  var old_f;
+  if (source == null) {
+    source = Element.prototype;
+  }
+  old_f = source[f_name];
+  return source[f_name] = function() {
+    if ((!((y != null) || (this._y_xml != null))) || proxy_token) {
+      return old_f.apply(this, arguments);
+    } else if (this._y_xml != null) {
+      return f.apply(this._y_xml, arguments);
+    } else {
+      return f.apply(y, arguments);
     }
-    old_f = source[f_name];
-    return source[f_name] = function() {
-      if ((!((y != null) || (this._y_xml != null))) || proxy_token) {
-        return old_f.apply(this, arguments);
-      } else if (this._y_xml != null) {
-        return f.apply(this._y_xml, arguments);
-      } else {
-        return f.apply(y, arguments);
-      }
-    };
   };
+};
+
+initialize_proxies = function() {
+  var f_add, f_remove, insertBefore, remove, removeChild, replaceChild, that;
   that = this;
   f_add = function(c) {
     return that.addClass(c);
@@ -563,9 +588,19 @@ initialize_proxies = function() {
   }
   proxies_are_initialized = true;
   insertBefore = function(insertedNode_s, adjacentNode) {
-    var child, new_childs, pos;
+    var child, i, j, len, n, new_childs, pos, ref, yparent;
     if (adjacentNode != null) {
-      pos = adjacentNode._y_xml.getPosition();
+      ref = this._dom.childNodes;
+      for (i = j = 0, len = ref.length; j < len; i = ++j) {
+        n = ref[i];
+        if (n === adjacentNode) {
+          pos = i;
+          break;
+        }
+      }
+      if (pos == null) {
+        throw new Error("The adjacentNode is not a child element of this node!");
+      }
     } else {
       pos = this.getChildren().length;
     }
@@ -579,13 +614,17 @@ initialize_proxies = function() {
     } else {
       new_childs.push(insertedNode_s);
     }
+    yparent = this;
     new_childs = new_childs.map(function(child) {
+      var ychild;
       if (child._y_xml != null) {
         return child._y_xml;
       } else if (child.nodeType === child.TEXT_NODE) {
         return child.textContent;
       } else {
-        return new YXml(child);
+        ychild = new YXml(child);
+        ychild._setParent(yparent);
+        return ychild;
       }
     });
     return this._model.val("children").insertContents(pos, new_childs);
@@ -606,12 +645,28 @@ initialize_proxies = function() {
     insertBefore.call(this, insertedNode, replacedNode);
     return removeChild.call(this, replacedNode);
   };
-  return _proxy('replaceChild', replaceChild);
+  _proxy('replaceChild', replaceChild);
+  remove = function() {
+    var this_dom;
+    if (this._model.val("parent") != null) {
+      return this.remove();
+    } else {
+      this_dom = this._dom;
+      return dont_proxy(function() {
+        return this_dom.remove();
+      });
+    }
+  };
+  return _proxy('remove', remove);
 };
 
 if (typeof window !== "undefined" && window !== null) {
   if (window.Y != null) {
-    window.Y.Xml = YXml;
+    if (window.Y.List != null) {
+      window.Y.Xml = YXml;
+    } else {
+      throw new Error("You must first import Y.List!");
+    }
   } else {
     throw new Error("You must first import Y!");
   }

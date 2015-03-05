@@ -328,6 +328,13 @@ describe "Y-Xml", ->
         expect(@u1.attr("class")).to.equal("classy moreclassy")
         expect(@dom.getAttribute("class")).to.equal("classy moreclassy")
 
+      it "supports dom.classList.remove", ->
+        @dom.classList.add "classy"
+        @dom.classList.add "moreclassy"
+        @dom.classList.remove "classy"
+        expect(@u1.attr("class")).to.equal("moreclassy")
+        expect(@dom.getAttribute("class")).to.equal("moreclassy")
+
 
       it "supports dom.textContent", ->
         dom = $("<p>dtrn</p>")[0]

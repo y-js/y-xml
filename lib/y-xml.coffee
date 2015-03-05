@@ -2,6 +2,7 @@ class YXml
 
   constructor: (tag_or_dom, attributes = {})->
     if not tag_or_dom?
+      @_xml = {}
       # nop
     else if tag_or_dom.constructor is String
       tagname = tag_or_dom
@@ -29,7 +30,9 @@ class YXml
       @_dom = tag_or_dom
       @_xml = {}
 
-
+  _checkForModel: ()->
+    if not @_model?
+      throw new Error "You have to put the Y."+@_name+' instance on a shared element before you can use it! E.g. on the y object y.val("my-'+@_name+'",y'+@_name+')'
 
   _name: "Xml"
 
@@ -90,6 +93,7 @@ class YXml
       throw new Error "parent must be of type Y.Xml!"
 
   toString: ()->
+    @_checkForModel()
     xml = "<"+@_model.val("tagname")
     for name, value of @attr()
       xml += " "+name+'="'+value+'"'
@@ -106,6 +110,7 @@ class YXml
   # .attr(name, value)
   #
   attr: (name, value)->
+    @_checkForModel()
     if arguments.length > 1
       if value.constructor isnt String
         throw new Error "The attributes must be of type String!"
@@ -135,6 +140,7 @@ class YXml
   # Adds the specified class(es) to this element
   #
   addClass: (names)->
+    @_checkForModel()
     for name in names.split(" ")
       @_model.val("classes").val(name, true)
     @
@@ -144,6 +150,7 @@ class YXml
   # .after(content [, content])
   #
   after: ()->
+    @_checkForModel()
     parent = @_model.val("parent")
     if not parent?
       throw new Error "This Xml Element must not have siblings! (for it does not have a parent)"
@@ -168,6 +175,7 @@ class YXml
   # .after(content [, content])
   #
   before: ()->
+    @_checkForModel()
     parent = @_model.val("parent")
     if not parent?
       throw new Error "This Xml Element must not have siblings! (for it does not have a parent)"
@@ -192,6 +200,7 @@ class YXml
   # .append(content [, content])
   #
   append: ()->
+    @_checkForModel()
     for content in arguments
       if content instanceof YXml
         content._setParent(@)
@@ -205,6 +214,7 @@ class YXml
   # .prepend(content [, content])
   #
   prepend: ()->
+    @_checkForModel()
     for content in arguments
       if content instanceof YXml
         content._setParent(@)
@@ -218,6 +228,7 @@ class YXml
   # .empty()
   #
   empty: ()->
+    @_checkForModel()
     # TODO: do it like this : @_model.val("children", new Y.List())
     children = @_model.val("children")
     for child in children.val()
@@ -231,6 +242,7 @@ class YXml
   # .hasClass(className)
   #
   hasClass: (className)->
+    @_checkForModel()
     if @_model.val("classes").val(className)?
       true
     else
@@ -241,7 +253,9 @@ class YXml
   # .remove()
   #
   remove: ()->
-    parent = @_model.delete("parent")
+    @_checkForModel()
+    if @_model.val("parent")?
+      parent = @_model.delete("parent")
     @
 
   #
@@ -249,6 +263,7 @@ class YXml
   # .removeAttr(attrName)
   #
   removeAttr: (attrName)->
+    @_checkForModel()
     if attrName is "class"
       @_model.val("classes", new @_model.custom_types.Object())
     else
@@ -260,6 +275,7 @@ class YXml
   # .removeClass([className])
   #
   removeClass: ()->
+    @_checkForModel()
     if arguments.length is 0
       @_model.val("classes", new @_model.custom_types.Object())
     else
@@ -273,6 +289,7 @@ class YXml
   # .toggleClass([className])
   #
   toggleClass: ()->
+    @_checkForModel()
     for className in arguments
       classes = @_model.val("classes")
       if classes.val(className)?
@@ -287,6 +304,7 @@ class YXml
   # .getParent()
   #
   getParent: ()->
+    @_checkForModel()
     @_model.val("parent")
 
   #
@@ -295,9 +313,11 @@ class YXml
   # .getChildren()
   #
   getChildren: ()->
+    @_checkForModel()
     @_model.val("children").val()
 
   getPosition: ()->
+    @_checkForModel()
     parent = @_model.val("parent")
     if parent?
       for c,i in parent._model.val("children").val()
@@ -309,6 +329,7 @@ class YXml
 
 
   getDom: ()->
+    @_checkForModel()
     if not @_dom?
       @_dom = document.createElement(@_model.val("tagname"))
 
@@ -320,7 +341,7 @@ class YXml
           dom = document.createTextNode child
         else
           dom = child.getDom()
-        @_dom.insertBefore dom
+        @_dom.insertBefore dom, null
 
     that = @
 
@@ -335,9 +356,9 @@ class YXml
               newNode = document.createTextNode(event.value)
             else
               newNode = event.value.getDom()
-              event.value._setParent that
+              # event.value._setParent that
             children = that._dom.childNodes
-            if children.length is event.position
+            if children.length <= event.position
               rightNode = null
             else
               rightNode = children[event.position]
@@ -394,17 +415,17 @@ dont_proxy = (f)->
     throw new Error e
   proxy_token = false
 
-initialize_proxies = ()->
+_proxy = (f_name, f, source = Element.prototype, y)->
+  old_f = source[f_name]
+  source[f_name] = ()->
+    if (not (y? or @_y_xml?)) or proxy_token
+      old_f.apply this, arguments
+    else if @_y_xml?
+      f.apply @_y_xml, arguments
+    else
+      f.apply y, arguments
 
-  _proxy = (f_name, f, source = Element.prototype, y)->
-    old_f = source[f_name]
-    source[f_name] = ()->
-      if (not (y? or @_y_xml?)) or proxy_token
-        old_f.apply this, arguments
-      else if @_y_xml?
-        f.apply @_y_xml, arguments
-      else
-        f.apply y, arguments
+initialize_proxies = ()->
 
   that = this
   f_add = (c)->
@@ -428,7 +449,6 @@ initialize_proxies = ()->
     if val isnt ""
       that.append val
 
-
   if proxies_are_initialized
     return
   proxies_are_initialized = true
@@ -437,7 +457,12 @@ initialize_proxies = ()->
 
   insertBefore = (insertedNode_s, adjacentNode)->
     if adjacentNode?
-      pos = adjacentNode._y_xml.getPosition()
+      for n,i in @_dom.childNodes
+        if n is adjacentNode
+          pos = i
+          break
+      if not pos?
+        throw new Error "The adjacentNode is not a child element of this node!"
     else
       pos = @getChildren().length
 
@@ -449,13 +474,17 @@ initialize_proxies = ()->
         child = child.nextSibling
     else
       new_childs.push insertedNode_s
+
+    yparent = this
     new_childs = new_childs.map (child)->
       if child._y_xml?
         child._y_xml
       else if child.nodeType == child.TEXT_NODE
         child.textContent
       else
-        new YXml(child)
+        ychild = new YXml(child)
+        ychild._setParent yparent
+        ychild
     @_model.val("children").insertContents pos, new_childs
 
   _proxy 'insertBefore', insertBefore
@@ -473,9 +502,22 @@ initialize_proxies = ()->
     removeChild.call this, replacedNode
   _proxy 'replaceChild', replaceChild
 
+  remove = ()->
+    if @_model.val("parent")?
+      @remove()
+    else
+      this_dom = this._dom
+      dont_proxy ()->
+        this_dom.remove()
+
+  _proxy 'remove', remove
+
 if window?
   if window.Y?
-    window.Y.Xml = YXml
+    if window.Y.List?
+      window.Y.Xml = YXml
+    else
+      throw new Error "You must first import Y.List!"
   else
     throw new Error "You must first import Y!"
 

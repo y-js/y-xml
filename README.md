@@ -4,7 +4,7 @@
 Manage XML Elements with this type. You can create a two-way binding to a DOM Element and manipulate the DOM directly while everybody will end up with the same DOM Element.
 
 ## Use it!
-Retrieve this with bower or npm.
+Retrieve this with bower or npm. Note: You also have to import [Y.Xml](https://github.com/rwth-acis/y-list)!
 
 ##### Bower
 ```
@@ -76,7 +76,39 @@ var yxml = new Y.Xml(dom)
 * .getDom()
   * Transform this Element to a DOM Element and create a two-way binding. All changes that are applied on the DOM Element will be reflected in the Y.Xml Element and vice versa.
 
+##### DOM Reference
+The following methods are supported on the dom (for two way binding)
 
+* .insertBefore
+* .appendChild
+* .setAttribute
+* .removeAttribute
+* .removeChild
+* .replaceChild
+* .classList.add
+* .classList.remove
+* .textContent (set and get)
+
+##### Jquery
+For convenience you can also use jquery to manipulate the DOM. This works because the respective DOM methods are implemented. Other libraries may also work. The following methods are tested:
+
+* .addClass
+* .after
+* .append
+* .appendTo
+* .before
+* .detach
+* .empty
+* .insertAfter
+* .insertBefore
+* .prepend
+* .prependTo
+* .remove
+* .removeAttr
+* .removeClass
+* .attr
+* .replaceAll
+* .replaceWith
 
 # A note on consistency, validation, and intention preservation
 We ensure that the XML is always well formed. Yjs does not (yet) support validation of shared types via, for example, DTDs. There are, however, some ways how we ensure the semantic meaning of some methods is preserved:
