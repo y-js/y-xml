@@ -349,8 +349,9 @@ describe "Y-Xml", ->
       it "suppports dom.textContent (non empty string)", ->
         dom = $("<p>dtrn</p>")[0]
         @dom.appendChild(dom)
-        expect(@u1+"").to.equal("<div><p>dtrn</p></div>")
-        expect(@dom.outerHTML).to.equal("<div><p>dtrn</p></div>")
+        @dom.appendChild(document.createTextNode("stuffystuff"))
+        expect(@u1+"").to.equal("<div><p>dtrn</p>stuffystuff</div>")
+        expect(@dom.outerHTML).to.equal("<div><p>dtrn</p>stuffystuff</div>")
 
         @dom.textContent = "stuff"
         expect(@u1+"").to.equal("<div>stuff</div>")

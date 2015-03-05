@@ -53,7 +53,9 @@ class YXml
           if child.nodeType is child.TEXT_NODE
             @_xml.children.push child.textContent
           else
-            @_xml.children.push(new YXml(child))
+            new_yxml = new YXml(child)
+            new_yxml._setParent @
+            @_xml.children.push(new_yxml)
       @_model = new ops.MapManager(@).execute()
       @_model.val("attributes", new Y.Object(@_xml.attributes))
       @_model.val("classes", new Y.Object(@_xml.classes))
@@ -366,7 +368,8 @@ class YXml
             dont_proxy ()->
               that._dom.insertBefore newNode, rightNode
           else if event.type is "delete"
-            deleted = event.oldValue.getDom()
+            deleted = that._dom.childNodes[event.position]
+
             dont_proxy ()->
               that._dom.removeChild deleted
       @_model.val("attributes").observe (events)->
@@ -448,6 +451,15 @@ initialize_proxies = ()->
     # insert word content
     if val isnt ""
       that.append val
+
+  @_dom.__defineGetter__ 'textContent', (val)->
+    res = ""
+    for c in that.getChildren()
+      if c.constructor is String
+        res += c
+      else
+        res += c._dom.textContent
+    res
 
   if proxies_are_initialized
     return

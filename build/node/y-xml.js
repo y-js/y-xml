@@ -51,7 +51,7 @@ YXml = (function() {
   YXml.prototype._name = "Xml";
 
   YXml.prototype._getModel = function(Y, ops) {
-    var attribute, c, child, j, k, l, len, len1, len2, ref, ref1, ref2;
+    var attribute, c, child, j, k, l, len, len1, len2, new_yxml, ref, ref1, ref2;
     if (this._model == null) {
       if (this._dom != null) {
         this._xml.tagname = this._dom.tagName.toLowerCase();
@@ -77,7 +77,9 @@ YXml = (function() {
           if (child.nodeType === child.TEXT_NODE) {
             this._xml.children.push(child.textContent);
           } else {
-            this._xml.children.push(new YXml(child));
+            new_yxml = new YXml(child);
+            new_yxml._setParent(this);
+            this._xml.children.push(new_yxml);
           }
         }
       }
@@ -444,7 +446,7 @@ YXml = (function() {
               return that._dom.insertBefore(newNode, rightNode);
             }));
           } else if (event.type === "delete") {
-            deleted = event.oldValue.getDom();
+            deleted = that._dom.childNodes[event.position];
             results.push(dont_proxy(function() {
               return that._dom.removeChild(deleted);
             }));
@@ -582,6 +584,20 @@ initialize_proxies = function() {
     if (val !== "") {
       return that.append(val);
     }
+  });
+  this._dom.__defineGetter__('textContent', function(val) {
+    var c, j, len, ref, res;
+    res = "";
+    ref = that.getChildren();
+    for (j = 0, len = ref.length; j < len; j++) {
+      c = ref[j];
+      if (c.constructor === String) {
+        res += c;
+      } else {
+        res += c._dom.textContent;
+      }
+    }
+    return res;
   });
   if (proxies_are_initialized) {
     return;
