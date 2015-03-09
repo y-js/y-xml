@@ -30,12 +30,12 @@ class XmlTest extends TestSuite
     super new Y conn
 
   initUsers: (u)->
-    u.val("xml",new Y.Xml("div"))
+    u.val("xml",new Y.Xml.Element("div"))
 
   type: "XmlTest"
 
   compare: (o1, o2, depth)->
-    if o1.constructor is Y.Xml
+    if o1 instanceof Y.Xml.Node
       super o1._model, o2._model, depth
     else
       super
@@ -61,7 +61,7 @@ class XmlTest extends TestSuite
 
   getRandomXmlElement: ()->
     if _.random(0,1) is 0
-      new Y.Xml(@getRandomKey())
+      new Y.Xml.Element(@getRandomKey())
     else
       @getRandomText()
 
@@ -70,56 +70,56 @@ class XmlTest extends TestSuite
     super(user_num).concat [
         f : (y)=> # set Attribute
           y.attr(that.getRandomKey(), that.getRandomText())
-        types: [Y.Xml]
+        types: [Y.Xml.Element]
       ,
         f : (y)-> # DELETE Attribute
           keys = Object.keys(y.attr())
           y.removeAttr(keys[_.random(0,keys.length-1)])
-        types : [Y.Xml]
+        types : [Y.Xml.Element]
       ,
         f : (y)-> # Add Class
           y.addClass(that.getRandomKey())
-        types : [Y.Xml]
+        types : [Y.Xml.Element]
       ,
         f : (y)-> # toggleClass
           y.toggleClass(that.getRandomKey())
-        types : [Y.Xml]
+        types : [Y.Xml.Element]
       ,
         f : (y)-> # Remove Class
           keys = y.attr("class").split(" ")
           y.removeClass(keys[_.random(0,keys.length-1)])
-        types : [Y.Xml]
+        types : [Y.Xml.Element]
       ,
         f : (y)-> # append XML
           child = that.getRandomXmlElement()
           y.append(child)
-        types : [Y.Xml]
+        types : [Y.Xml.Element]
       ,
         f : (y)-> # pepend XML
           child = that.getRandomXmlElement()
           y.prepend child
-        types : [Y.Xml]
+        types : [Y.Xml.Element]
       ,
         f : (y)-> # after XML
           if y.getParent()?
             child = that.getRandomXmlElement()
             y.after child
-        types : [Y.Xml]
+        types : [Y.Xml.Element]
       ,
         f : (y)-> # before XML
           if y.getParent()?
             child = that.getRandomXmlElement()
             y.before child
-        types : [Y.Xml]
+        types : [Y.Xml.Element]
       ,
         f : (y)-> # empty
           y.empty()
-        types : [Y.Xml]
+        types : [Y.Xml.Element]
       ,
         f : (y)-> # remove
           if y.getParent()?
             y.remove()
-        types : [Y.Xml]
+        types : [Y.Xml.Element]
     ]
 
 describe "Y-Xml", ->
@@ -174,39 +174,39 @@ describe "Y-Xml", ->
 
 
     it "append", ->
-      child = new Y.Xml("child")
-      child2 = new Y.Xml("child2")
+      child = new Y.Xml.Element("child")
+      child2 = new Y.Xml.Element("child2")
       @u1.append child
       @u1.append child2
       expect(@u1.toString()).to.equal("<div><child></child><child2></child2></div>")
       @yTest.compareAll()
 
     it "prepend", ->
-      child = new Y.Xml("child")
-      child2 = new Y.Xml("child2")
+      child = new Y.Xml.Element("child")
+      child2 = new Y.Xml.Element("child2")
       @u1.prepend child2
       @u1.prepend child
       expect(@u1.toString()).to.equal("<div><child></child><child2></child2></div>")
       @yTest.compareAll()
 
     it "after", ->
-      child = new Y.Xml("child")
+      child = new Y.Xml.Element("child")
       @u1.append child
-      child.after new Y.Xml("right-child")
+      child.after new Y.Xml.Element("right-child")
       expect(@u1.toString()).to.equal("<div><child></child><right-child></right-child></div>")
       @yTest.compareAll()
 
     it "before", ->
-      child = new Y.Xml("child")
+      child = new Y.Xml.Element("child")
       @u1.append child
-      child.before new Y.Xml("left-child")
+      child.before new Y.Xml.Element("left-child")
       expect(@u1.toString()).to.equal("<div><left-child></left-child><child></child></div>")
       @yTest.compareAll()
 
     it "empty", ->
-      child = new Y.Xml("child")
+      child = new Y.Xml.Element("child")
       @u1.append child
-      child.before new Y.Xml("left-child")
+      child.before new Y.Xml.Element("left-child")
       expect(@u1.toString()).to.equal("<div><left-child></left-child><child></child></div>")
       @yTest.compareAll()
       @u1.empty()
@@ -214,8 +214,8 @@ describe "Y-Xml", ->
       @yTest.compareAll()
 
     it "remove", ->
-      child = new Y.Xml("child")
-      child2 = new Y.Xml("child2")
+      child = new Y.Xml.Element("child")
+      child2 = new Y.Xml.Element("child2")
       @u1.prepend child2
       @u1.prepend child
       expect(@u1.toString()).to.equal("<div><child></child><child2></child2></div>")
@@ -252,12 +252,12 @@ describe "Y-Xml", ->
       expect(@u1.attr("class")).to.equal("wraa")
 
     it "getParent", ->
-      child = new Y.Xml("child")
+      child = new Y.Xml.Element("child")
       @u1.prepend(child)
       expect(@u1).to.equal(child.getParent())
 
     it "getChildren", ->
-      child = new Y.Xml("child")
+      child = new Y.Xml.Element("child")
       @u1.prepend(child)
       expect(@u1.getChildren()[0]).to.equal(child)
 

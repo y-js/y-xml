@@ -27,13 +27,23 @@ and put it on the `Y` object.
 Y.Xml = require("y-xml");
 ```
 
+# Xml Types
+The Xml types strongly resemple the Dom types.
+This repository exports the following types:
+* Y.Xml.Node (abstract definition)
+* Y.Xml.Element (inherits from Y.Xml.Node)
+  * Holds a set of Xml Nodes and it has attributes
+* Y.Xml.Text (inherits from Y.Xml.Node)
+  * Definition of a node that holds text
 
-### Xml Element
+
+### Y.Xml.Element
+The Y.Xml.Element strongly resemples the DOM Element.
 
 ##### Reference
 * Create
 ```
-var yxml = new Y.Xml()
+var yxml = new Y.Xml.Element()
 ```
 * Create with existing DOM Element
 ```
@@ -77,7 +87,7 @@ var yxml = new Y.Xml(dom)
   * Transform this Element to a DOM Element and create a two-way binding. All changes that are applied on the DOM Element will be reflected in the Y.Xml Element and vice versa.
 
 ##### DOM Reference
-The following methods are supported on the dom (for two way binding)
+The following methods are supported on DOM Elements (for two way binding)
 
 * .insertBefore
 * .appendChild
@@ -109,6 +119,40 @@ For convenience you can also use jquery to manipulate the DOM. This works becaus
 * .attr
 * .replaceAll
 * .replaceWith
+
+### Y.Xml.Text
+##### Reference
+* Create
+```
+var yxml = new Y.Xml.Text()
+```
+* Create with existing DOM Element
+```
+var yxml = new Y.Xml(dom)
+```
+* Create with a String
+```
+var yxml = new Y.Xml(string)
+```
+* .toString()
+  * Transform this Node to a String
+* .after(yxml)
+  * Insert an Y.Xml Element after this Element
+* .before(yxml)
+  * Insert an Y.Xml Element before this Element
+* .remove()
+  * Remove this Element from the parent
+* .getParent()
+  * Get the parent of this Element
+* .getDom()
+  * Transform this Element to a DOM Text Node and create a two-way binding. All changes that are applied on the DOM Element will be reflected in the Y.Xml Element and vice versa.
+* .update() (development)
+  * In some cases the DOM may get changed unexpectedly (e.g. the Text Node is *contenteditable* and a user inserted a character, or it is changed by an unsupported DOM method). Then you can trigger this method and update the Y.Xml.Text type to the current value of the DOM.
+
+##### DOM Reference
+The following methods are supported on DOM Text Nodes (for two way binding)
+
+* .textContent
 
 # A note on consistency, validation, and intention preservation
 We ensure that the XML is always well formed. Yjs does not (yet) support validation of shared types via, for example, DTDs. There are, however, some ways how we ensure the semantic meaning of some methods is preserved:
