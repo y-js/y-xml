@@ -1,5 +1,5 @@
 
-# XML Type for [Yjs](https://github.com/rwth-acis/yjs)
+# XML Type for [Yjs](https://github.com/y-js/yjs)
 
 Manage XML Elements with this type. You can create a two-way binding to a DOM Element and manipulate the DOM directly while everybody will end up with the same DOM Element.
 
