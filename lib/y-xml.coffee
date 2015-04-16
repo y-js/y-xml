@@ -124,10 +124,10 @@ class YXml.Node
 class YXml.Text extends YXml.Node
   constructor: (text = "")->
     super()
-    if text instanceof window.Text
-      @_dom = text
-    else if text.constructor is String
+    if text.constructor is String
       @_xml.text = text
+    else if text instanceof window.Text
+      @_dom = text
     else if text?
       throw new Error "The constructor of Y.Xml.Text expects either String or an Dom Text element!"
 
@@ -611,12 +611,3 @@ if window?
 
 if module?
   module.exports = YXml
-
-
-
-
-
-
-
-
-
