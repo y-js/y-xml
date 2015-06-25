@@ -11,7 +11,7 @@ window.onload = function(){
     if(y.val("dom") == null){
       // check if dom was already assigned
       window.shared_div = document.querySelector("#shared_div");
-      y.val("dom", new Y.Xml(window.shared_div));
+      y.val("dom", new Y.Xml.Element(window.shared_div));
     }
 
     var p = document.createElement("b")
