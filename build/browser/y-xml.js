@@ -518,7 +518,14 @@ YXml.Element = (function(_super) {
     var attr_name, attr_value, child, dom, i, setClasses, that, _i, _len, _ref, _ref1;
     this._checkForModel();
     if (this._dom == null) {
-      this._dom = document.createElement(this._model.val("tagname"));
+      //added support for svg elements using document.createElementNS
+      var svg = this._model.val("tagname").match(/g|svg|rect|line|path|ellipse|text|tspan|defs|symbol|use|linearGradient|pattern/g);
+      if (svg != null) {
+        this._dom = document.createElementNS("http://www.w3.org/2000/svg", this._model.val("tagname"));
+      }
+      else {
+          this._dom = document.createElement(this._model.val("tagname"));
+      }
       _ref = this.attr();
       for (attr_name in _ref) {
         attr_value = _ref[attr_name];
