@@ -399,8 +399,13 @@ class YXml.Element extends YXml.Node
   getDom: ()->
     @_checkForModel()
     if not @_dom?
-      @_dom = document.createElement(@_model.val("tagname"))
-
+      svg = this._model
+        .val("tagname")
+        .match(/g|svg|rect|line|path|ellipse|text|tspan|defs|symbol|use|linearGradient|pattern/g)
+      if svg?
+        @_dom = document.createElementNS("http://www.w3.org/2000/svg", this._model.val("tagname"))
+      else
+        @_dom = document.createElement(@_model.val("tagname"))
       # set the attributes _and_ the classes (@see .attr())
       for attr_name, attr_value of @attr()
         @_dom.setAttribute attr_name, attr_value

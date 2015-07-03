@@ -176,10 +176,10 @@ YXml.Text = (function(superClass) {
       text = "";
     }
     Text.__super__.constructor.call(this);
-    if (text instanceof window.Text) {
-      this._dom = text;
-    } else if (text.constructor === String) {
+    if (text.constructor === String) {
       this._xml.text = text;
+    } else if (text instanceof window.Text) {
+      this._dom = text;
     } else if (text != null) {
       throw new Error("The constructor of Y.Xml.Text expects either String or an Dom Text element!");
     }
@@ -514,10 +514,15 @@ YXml.Element = (function(superClass) {
   };
 
   Element.prototype.getDom = function() {
-    var attr_name, attr_value, child, dom, i, j, len, ref, ref1, setClasses, that;
+    var attr_name, attr_value, child, dom, i, j, len, ref, ref1, setClasses, svg, that;
     this._checkForModel();
     if (this._dom == null) {
-      this._dom = document.createElement(this._model.val("tagname"));
+      svg = this._model.val("tagname").match(/g|svg|rect|line|path|ellipse|text|tspan|defs|symbol|use|linearGradient|pattern/g);
+      if (svg != null) {
+        this._dom = document.createElementNS("http://www.w3.org/2000/svg", this._model.val("tagname"));
+      } else {
+        this._dom = document.createElement(this._model.val("tagname"));
+      }
       ref = this.attr();
       for (attr_name in ref) {
         attr_value = ref[attr_name];
