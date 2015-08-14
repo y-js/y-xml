@@ -319,7 +319,7 @@ YXml.Element = (function(superClass) {
           child = ref2[l];
           if (child.nodeType === child.TEXT_NODE) {
             this._xml.children.push(new YXml.Text(child));
-          } else {
+          } else if (child.nodeType === child.ELEMENT_NODE) {
             new_yxml = new YXml.Element(child);
             new_yxml._setParent(this);
             this._xml.children.push(new_yxml);
@@ -544,23 +544,23 @@ YXml.Element = (function(superClass) {
       this._dom._y_xml = this;
       initialize_proxies.call(this);
       this._model.val("children").observe(function(events) {
-        var children, deleted, event, k, len1, newNode, results, rightNode;
+        var deleted, event, k, len1, newNode, results, rightElement, rightNode;
         results = [];
         for (k = 0, len1 = events.length; k < len1; k++) {
           event = events[k];
           if (event.type === "insert") {
             newNode = event.value.getDom();
-            children = that._dom.childNodes;
-            if (children.length <= event.position) {
+            rightElement = event.reference.getNext();
+            if (rightElement.type === "Delimiter") {
               rightNode = null;
             } else {
-              rightNode = children[event.position];
+              rightNode = rightElement.getContent()._dom;
             }
             results.push(dont_proxy(function() {
               return that._dom.insertBefore(newNode, rightNode);
             }));
           } else if (event.type === "delete") {
-            deleted = that._dom.childNodes[event.position];
+            deleted = that._model.val("children").val(event.position)._dom;
             results.push(dont_proxy(function() {
               return that._dom.removeChild(deleted);
             }));

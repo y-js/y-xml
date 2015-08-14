@@ -216,10 +216,11 @@ class YXml.Element extends YXml.Node
         for child in @_dom.childNodes
           if child.nodeType is child.TEXT_NODE
             @_xml.children.push new YXml.Text(child)
-          else
+          else if child.nodeType is child.ELEMENT_NODE
             new_yxml = new YXml.Element(child)
             new_yxml._setParent @
             @_xml.children.push(new_yxml)
+          # else nop
       @_model = new ops.MapManager(@).execute()
       @_model.val("attributes", new Y.Object(@_xml.attributes))
       @_model.val("classes", new Y.Object(@_xml.classes))
@@ -426,17 +427,15 @@ class YXml.Element extends YXml.Node
         for event in events
           if event.type is "insert"
             newNode = event.value.getDom()
-            # event.value._setParent that
-            children = that._dom.childNodes
-            if children.length <= event.position
+            rightElement = event.reference.getNext()
+            if rightElement.type is "Delimiter"
               rightNode = null
             else
-              rightNode = children[event.position]
-
+              rightNode = rightElement.getContent()._dom
             dont_proxy ()->
               that._dom.insertBefore newNode, rightNode
           else if event.type is "delete"
-            deleted = that._dom.childNodes[event.position]
+            deleted = that._model.val("children").val(event.position)._dom
 
             dont_proxy ()->
               that._dom.removeChild deleted
