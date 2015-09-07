@@ -181,7 +181,7 @@ class YXml.Element extends YXml.Node
       #  throw new Error "You must specify a tagname"
       @_xml.tagname = tagname
       if attributes.constructor isnt Object
-        throw new Error "The attributes must be specified as a Object"
+        throw new Error "The attributes must be specified as an Object"
       for a_name, a of attributes
         if a.constructor isnt String
           throw new Error "The attributes must be of type String!"
@@ -217,7 +217,11 @@ class YXml.Element extends YXml.Node
           if child.nodeType is child.TEXT_NODE
             @_xml.children.push new YXml.Text(child)
           else if child.nodeType is child.ELEMENT_NODE
-            new_yxml = new YXml.Element(child)
+            new_yxml = null
+            if child.tagName.search(/^(textarea|input)$/gi) >= 0
+              new_yxml = new YXml.InputElement(child)
+            else
+              new_yxml = new YXml.Element(child)
             new_yxml._setParent @
             @_xml.children.push(new_yxml)
           # else nop
@@ -423,6 +427,8 @@ class YXml.Element extends YXml.Node
       @_dom._y_xml = @
       initialize_proxies.call @
 
+      if @customBind?
+        @customBind()
       @_model.val("children").observe (events)->
         for event in events
           if event.type is "insert"
@@ -470,6 +476,23 @@ class YXml.Element extends YXml.Node
             setClasses()
 
     @_dom
+
+
+class YXml.InputElement extends YXml.Element
+  _name: "Xml.InputElement"
+  _getModel: (Y, ops)->
+    if not @_model?
+      super
+    @_model
+
+  customBind: ()->
+    textval = ""
+    if not @_model.val("value")?
+      if @_dom?
+        textval = @_dom.value
+      @_model.val("value", new Y.Text(textval))
+    @_model.val("value").bind(@_dom)
+
 
 proxies_are_initialized = false
 # some dom implementations may call another dom.method that simulates the behavior of another.

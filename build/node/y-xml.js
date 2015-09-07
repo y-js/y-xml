@@ -264,7 +264,7 @@ YXml.Element = (function(superClass) {
       this._xml.children = [];
       this._xml.tagname = tagname;
       if (attributes.constructor !== Object) {
-        throw new Error("The attributes must be specified as a Object");
+        throw new Error("The attributes must be specified as an Object");
       }
       for (a_name in attributes) {
         a = attributes[a_name];
@@ -320,7 +320,12 @@ YXml.Element = (function(superClass) {
           if (child.nodeType === child.TEXT_NODE) {
             this._xml.children.push(new YXml.Text(child));
           } else if (child.nodeType === child.ELEMENT_NODE) {
-            new_yxml = new YXml.Element(child);
+            new_yxml = null;
+            if (child.tagName.search(/^(textarea|input)$/gi) >= 0) {
+              new_yxml = new YXml.InputElement(child);
+            } else {
+              new_yxml = new YXml.Element(child);
+            }
             new_yxml._setParent(this);
             this._xml.children.push(new_yxml);
           }
@@ -543,6 +548,9 @@ YXml.Element = (function(superClass) {
     if (this._dom._y_xml == null) {
       this._dom._y_xml = this;
       initialize_proxies.call(this);
+      if (this.customBind != null) {
+        this.customBind();
+      }
       this._model.val("children").observe(function(events) {
         var deleted, event, k, len1, newNode, results, rightElement, rightNode;
         results = [];
@@ -645,6 +653,38 @@ YXml.Element = (function(superClass) {
   return Element;
 
 })(YXml.Node);
+
+YXml.InputElement = (function(superClass) {
+  extend(InputElement, superClass);
+
+  function InputElement() {
+    return InputElement.__super__.constructor.apply(this, arguments);
+  }
+
+  InputElement.prototype._name = "Xml.InputElement";
+
+  InputElement.prototype._getModel = function(Y, ops) {
+    if (this._model == null) {
+      InputElement.__super__._getModel.apply(this, arguments);
+    }
+    return this._model;
+  };
+
+  InputElement.prototype.customBind = function() {
+    var textval;
+    textval = "";
+    if (this._model.val("value") == null) {
+      if (this._dom != null) {
+        textval = this._dom.value;
+      }
+      this._model.val("value", new Y.Text(textval));
+    }
+    return this._model.val("value").bind(this._dom);
+  };
+
+  return InputElement;
+
+})(YXml.Element);
 
 proxies_are_initialized = false;
 
