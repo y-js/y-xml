@@ -20,8 +20,8 @@ YXml.Node = (function() {
   Node.prototype._getModel = function() {
     if (this._xml.parent != null) {
       this._model.val("parent", this._xml.parent);
-      this._setModel(this._model);
     }
+    this._setModel(this._model);
     if (this._dom != null) {
       this.getDom();
     }
@@ -38,7 +38,7 @@ YXml.Node = (function() {
         if (event.name === "parent" && event.type !== "add") {
           parent = event.oldValue;
           children = (ref = parent._model.val("children")) != null ? ref.val() : void 0;
-          if (children != null) {
+          if ((children != null) && event.oldValue !== event.object._model.val("parent")) {
             results.push((function() {
               var k, len1, results1;
               results1 = [];
@@ -517,8 +517,8 @@ YXml.Element = (function(superClass) {
     var attr_name, attr_value, child, dom, i, j, len, ref, ref1, setClasses, svg, that;
     this._checkForModel();
     if (this._dom == null) {
-      svg = this._model.val("tagname").match(/g|svg|rect|line|path|ellipse|text|tspan|defs|symbol|use|linearGradient|pattern/g);
-      if (svg != null) {
+      svg = this._model.val("tagname").search(/^(g|svg|rect|line|path|ellipse|text|tspan|defs|symbol|use|linearGradient|pattern)$/gi);
+      if (svg >= 0) {
         this._dom = document.createElementNS("http://www.w3.org/2000/svg", this._model.val("tagname"));
       } else {
         this._dom = document.createElement(this._model.val("tagname"));
@@ -560,10 +560,14 @@ YXml.Element = (function(superClass) {
               return that._dom.insertBefore(newNode, rightNode);
             }));
           } else if (event.type === "delete") {
-            deleted = that._model.val("children").val(event.position)._dom;
-            results.push(dont_proxy(function() {
-              return that._dom.removeChild(deleted);
-            }));
+            deleted = event.reference.val()._dom;
+            if (deleted !== null) {
+              results.push(dont_proxy(function() {
+                return that._dom.removeChild(deleted);
+              }));
+            } else {
+              results.push(void 0);
+            }
           } else {
             results.push(void 0);
           }

@@ -13,9 +13,6 @@ window.onload = function(){
       window.shared_div = document.querySelector("#shared_div");
       y.val("dom", new Y.Xml.Element(window.shared_div));
     }
-
-    var p = document.createElement("b")
-    shared_div.insertBefore(p,null)
   })
   y.observe(function(events){
     for(i in events){

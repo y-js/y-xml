@@ -12,7 +12,7 @@ class YXml.Node
   _getModel: ()->
     if @_xml.parent?
       @_model.val("parent", @_xml.parent)
-      @_setModel @_model
+    @_setModel @_model
     if @_dom?
       @getDom()
     @_model
@@ -23,7 +23,7 @@ class YXml.Node
         if event.name is "parent" and event.type isnt "add"
           parent = event.oldValue
           children = parent._model.val("children")?.val()
-          if children?
+          if children? and event.oldValue isnt event.object._model.val("parent")
             for c,i in children
               if c is @
                 parent._model.val("children").delete i
@@ -402,8 +402,8 @@ class YXml.Element extends YXml.Node
     if not @_dom?
       svg = this._model
         .val("tagname")
-        .match(/g|svg|rect|line|path|ellipse|text|tspan|defs|symbol|use|linearGradient|pattern/g)
-      if svg?
+        .search(/^(g|svg|rect|line|path|ellipse|text|tspan|defs|symbol|use|linearGradient|pattern)$/gi)
+      if svg >= 0
         @_dom = document.createElementNS("http://www.w3.org/2000/svg", this._model.val("tagname"))
       else
         @_dom = document.createElement(@_model.val("tagname"))
@@ -435,10 +435,10 @@ class YXml.Element extends YXml.Node
             dont_proxy ()->
               that._dom.insertBefore newNode, rightNode
           else if event.type is "delete"
-            deleted = that._model.val("children").val(event.position)._dom
-
-            dont_proxy ()->
-              that._dom.removeChild deleted
+            deleted = event.reference.val()._dom
+            if (deleted != null)
+              dont_proxy ()->
+                that._dom.removeChild deleted
       @_model.val("attributes").observe (events)->
         for event in events
           if event.type is "add" or event.type is "update"
