@@ -45,12 +45,6 @@ The Y.Xml.Element strongly resemples the DOM Element.
 ```
 var yxml = new Y.Xml.Element()
 ```
-* Create with existing DOM Element
-```
-var yxml = new Y.Xml(dom)
-```
-* .toString()
-  * Transform this Element to a String
 * .attr()
   * Retrieve all the attributes as a JSON object
 * .attr(attrName)
