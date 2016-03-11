@@ -106,28 +106,27 @@ function extend (Y) {
                 if (mutation.type === 'attributes') {
                   this.attributes.set(mutation.attributeName, mutation.target.getAttribute(mutation.attributeName))
                 } else if (mutation.type === 'childList') {
-                  Array.prototype.map.call(mutation.addedNodes, function (n) {
+                  Array.prototype.forEach.call(Array.prototype.reverse.call(mutation.addedNodes), n => {
                     // compute position
-                    return {
-                      index: Array.prototype.findIndex.call(dom.childNodes, function (m) { return m === n }),
-                      node: n
-                    }
-                  }).sort(function (a, b) {
-                    // insert high index first
-                    return a.index < b.index
-                  }).forEach(ins => {
-                    var c
-                    if (ins.node instanceof window.Text) {
-                      c = ins.node.textContent
-                    } else if (ins.node instanceof window.Element) {
-                      c = Y.Xml(ins.node)
+                    var pos
+                    if (n.nextSibling == null) {
+                      pos = this._content.length
                     } else {
-                      throw new Error('Unsupported XML element found. Synchronization will no longer work')
+                      pos = this._content.findIndex(function (c) { return c.dom === n.nextSibling })
                     }
-                    this.insert(ins.index, [c])
-                    var content = this._content[ins.index]
-                    content.dom = ins.node
+                    var c
+                    if (n instanceof window.Text) {
+                      c = n.textContent
+                    } else if (n instanceof window.Element) {
+                      c = Y.Xml(n)
+                    } else {
+                      throw new Error('Unsupported XML Element found. Synchronization will no longer work!')
+                    }
+                    this.insert(pos, [c])
+                    var content = this._content[pos]
+                    content.dom = n
                     content.isInserted = true
+                    _tryInsertDom(pos - 1)
                   })
                   Array.prototype.forEach.call(mutation.removedNodes, n => {
                     var pos = this._content.findIndex(function (c) {
@@ -187,14 +186,19 @@ function extend (Y) {
                         var pos = this._content.findIndex(function (c) {
                           return c.id === event.valueId
                         })
-                        this._content[pos].dom = newNode
-                        _tryInsertDom(pos)
+                        if (pos >= 0) {
+                          this._content[pos].dom = newNode
+                          _tryInsertDom(pos)
+                        }
                       })
                       this._domObserver.takeRecords()
                     })
                   }
                 } else if (event.type === 'childRemoved') {
-                  event._content.dom.remove()
+                  var d = event._content.dom
+                  if (d != null) {
+                    d.remove()
+                  }
                   _tryInsertDom(event.index - 1)
                 }
               })
