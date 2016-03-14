@@ -88,20 +88,29 @@ function extend (Y) {
           // this function makes sure that either the
           // dom event is executed, or the yjs observer is executed
           var token = true
-          function mutualExcluse (f) {
+          var mutualExclude = f => {
+            // take and process current records
+            var records = this._domObserver.takeRecords()
+            if (records.length > 0) {
+              this._domObserverListener(records)
+            }
             if (token) {
               token = false
               try {
                 f()
               } catch (e) {
+                // discard created records
+                this._domObserver.takeRecords()
                 token = true
-                throw new Error(e)
+                throw e
               }
+              this._domObserver.takeRecords()
               token = true
             }
           }
+          this._mutualExclude = mutualExclude
           this._domObserverListener = mutations => {
-            mutualExcluse(() => {
+            mutualExclude(() => {
               mutations.forEach(mutation => {
                 if (mutation.type === 'attributes') {
                   this.attributes.set(mutation.attributeName, mutation.target.getAttribute(mutation.attributeName))
@@ -161,8 +170,9 @@ function extend (Y) {
               c = this._content[--pos]
             }
           }
+          this._tryInsertDom = _tryInsertDom
           this.observe(events => {
-            mutualExcluse(() => {
+            mutualExclude(() => {
               events.sort(function (a, b) {
                 return a.index < b.index
               }).forEach(event => {
@@ -179,8 +189,7 @@ function extend (Y) {
                     event.node().then(xml => {
                       return xml.getDom()
                     }).then(newNode => {
-                      this._domObserverListener(this._domObserver.takeRecords())
-                      mutualExcluse(() => {
+                      mutualExclude(() => {
                         // This is called async. So we have to compute the position again
                         // also mutual excluse this
                         var pos = this._content.findIndex(function (c) {
@@ -191,7 +200,6 @@ function extend (Y) {
                           _tryInsertDom(pos)
                         }
                       })
-                      this._domObserver.takeRecords()
                     })
                   }
                 } else if (event.type === 'childRemoved') {
@@ -202,7 +210,6 @@ function extend (Y) {
                   _tryInsertDom(event.index - 1)
                 }
               })
-              this._domObserver.takeRecords()
             })
           })
           resolve(dom)
@@ -211,10 +218,10 @@ function extend (Y) {
       _setDom (dom) {
         if (this.dom != null) {
           throw new Error('Only call this method if you know what you are doing ;)')
-        } else if (dom.__yxml_model != null) {
+        } else if (dom.__yxml != null) { // TODO do i need to check this? - no.. but for dev purps..
           throw new Error('Already bound to an YXml type')
         } else {
-          dom.__yxml_model = this._model
+          dom.__yxml = this._model
           // tag is already set in constructor
           // set attributes
           for (var i = 0; i < dom.attributes.length; i++) {
@@ -223,7 +230,7 @@ function extend (Y) {
           }
           this.insert(0, Array.prototype.map.call(dom.childNodes, function (c, i) {
             if (c instanceof window.Element) {
-              return Y.Xml(dom)
+              return Y.Xml(c)
             } else if (c instanceof window.Text) {
               return c.textContent
             } else {
@@ -243,37 +250,51 @@ function extend (Y) {
       getDom () {
         if (this.dom == null) {
           var dom = document.createElement(this.tagname)
-          dom.__yxml_model = this._model
+          dom.__yxml = this
           this.attributes.keysPrimitives().forEach(key => {
             dom.setAttribute(key, this.attributes.get(key))
           })
-          var elements = []
-          for (var i = 0; i < this.length; i++) {
-            elements.push(this.get(i))
-          }
-          // push children of model to dom
-          this.dom = Promise.all(elements)
-            .then(elements => {
-              return Promise.all(elements.map(function (e) {
-                if (e instanceof YXml) {
-                  return e.getDom()
+          return new Promise((resolve) => {
+            var self = this
+            this.os.requestTransaction(function *() {
+              var children = [] // <Promise([dom, content_i])>
+              for (var i = 0; i < self._content.length; i++) {
+                let c = self._content[i]
+                if (c.hasOwnProperty('val')) {
+                  children.push([new window.Text(c.val), c])
                 } else {
-                  return e
+                  var type = yield* this.getType(c.type)
+                  children.push(type.getDom().then(function (dom) {
+                    return [dom, c]
+                  }))
                 }
-              }))
-            })
-            .then(elements => {
-              elements.forEach((e, i) => {
-                if (typeof e === 'string') {
-                  e = new window.Text(e)
-                }
-                var c = this._content[i]
-                c.dom = e
-                c.isInserted = true
-                dom.insertBefore(e, null)
+              }
+              self.dom = self._bindToDom(dom)
+              Promise.all(children).then(function (inserts) {
+                self._mutualExclude(function () {
+                  inserts.forEach(function (ins, i) {
+                    // need to find position again, because this could be deleted (though this is very unlikely)
+                    var pos
+                    if (self._content[i] === ins[1]) {
+                      // likeliest case
+                      pos = i
+                    } else {
+                      // find content again
+                      pos = self._content.findIndex(function (c) {
+                        return c === ins[1]
+                      })
+                    }
+                    if (pos >= 0) {
+                      // not deleted, insert dom
+                      ins[1].dom = ins[0]
+                      self._tryInsertDom(pos)
+                    }
+                  })
+                  self.dom.then(resolve)
+                })
               })
-              return this._bindToDom(dom)
             })
+          })
         }
         return this.dom
       }
@@ -320,11 +341,16 @@ function extend (Y) {
         op.requires = [properties._model] // XML dequires that properties is loaded
       },
       initType: function * YXmlInitializer (os, model, init) {
-        var _content = yield* Y.Struct.List.map.call(this, model, function (c) {
-          return {
-            id: JSON.stringify(c.id),
-            val: c.content
+        var _content = yield* Y.Struct.List.map.call(this, model, function (op) {
+          var c = {
+            id: JSON.stringify(op.id)
           }
+          if (op.hasOwnProperty('opContent')) {
+            c.type = op.opContent
+          } else {
+            c.val = op.content
+          }
+          return c
         })
         var properties = yield* this.getType(model.requires[0]) // get the only required op
         return new YXml(os, model.id, _content, properties, model.info.tagname, init)

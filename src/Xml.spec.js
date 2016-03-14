@@ -5,7 +5,7 @@
 var Y = require('../../yjs/src/SpecHelper.js')
 require('./Xml.js')(Y)
 
-var numberOfXmlTests = 5
+var numberOfXmlTests = 1000
 var repeatXmlTests = 100
 
 
@@ -291,7 +291,7 @@ for (let database of databases) {
             var i = getRandomNumber(a.dom.childNodes.length + 1) // also expect succ to be undefined!
             var succ = a.dom.childNodes[i]
             a.dom.insertBefore(document.createElement(getRandomString()), succ)
-          },/*
+          },
           function insertTextSecondLayer (a) {
             var dom = a.dom.children[getRandomNumber(a.dom.children.length)]
             if (dom != null) {
@@ -299,7 +299,7 @@ for (let database of databases) {
               var succ = dom.childNodes[i]
               dom.insertBefore(new Text(getRandomString()), succ)
             }
-          },*/
+          },
           function insertDomSecondLayer (a) {
             var dom = a.dom.children[getRandomNumber(a.dom.children.length)]
             if (dom != null) {
@@ -307,7 +307,7 @@ for (let database of databases) {
               var succ = dom.childNodes[i]
               dom.insertBefore(document.createElement(getRandomString()), succ)
             }
-          }/*
+          },
           function deleteChild (a) {
             var i = getRandomNumber(a.dom.childNodes.length)
             var d = a.dom.childNodes[i]
@@ -324,7 +324,7 @@ for (let database of databases) {
                 d.remove()
               }
             }
-          }*/
+          }
         ]
         beforeEach(async(function * (done) {
           var promises = []
