@@ -332,7 +332,8 @@ function extend (Y) {
       appendAdditionalInfo: function * (op, init) {
         var id = null
         if (op.id[0] === '_') {
-          id = ['_', 'prop_' + op.id[1]]
+          var typestruct = Y.Map.typeDefinition.struct
+          id = ['_', typestruct + '_' + 'Map_' + op.id[1]]
         }
         var properties = yield* this.createType(Y.Map(), id)
         op.info = {
