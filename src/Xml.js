@@ -339,7 +339,7 @@ function extend (Y) {
         op.info = {
           tagname: init.tagname
         }
-        op.requires = [properties._model] // XML dequires that properties is loaded
+        op.requires = [properties._model] // XML requires that 'properties' exists
       },
       initType: function * YXmlInitializer (os, model, init) {
         var _content = yield* Y.Struct.List.map.call(this, model, function (op) {

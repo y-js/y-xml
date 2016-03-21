@@ -182,7 +182,7 @@ for (let database of databases) {
         it('dom changes on y element insert & delete (Element)', async(function * (done) {
           var dom = yield y1.getDom()
           y1.insert(0, [Y.Xml('DIV')])
-          yield wait()
+          yield wait(100)
           expect(dom.childNodes[0].tagName).toEqual('DIV')
           expect(y1.length).toEqual(1)
           expect(dom.childNodes.length).toEqual(1)
