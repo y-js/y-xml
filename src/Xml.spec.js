@@ -1,4 +1,4 @@
-/* global createUsers, databases, wait, compareAllUsers, getRandomNumber, getRandomString, applyRandomTransactionsNoGCNoDisconnect, applyRandomTransactionsAllRejoinNoGC, applyRandomTransactionsWithGC, async, garbageCollectAllUsers, describeManyTimes */
+/* global createUsers, databases, wait, compareAllUsers, getRandomNumber, getRandomString, applyRandomTransactionsNoGCNoDisconnect, applyRandomTransactionsAllRejoinNoGC, applyRandomTransactionsWithGC, async, describeManyTimes */
 /* eslint-env browser,jasmine */
 'use strict'
 
@@ -47,7 +47,7 @@ function attrsToArray (attrs) {
 
 for (let database of databases) {
   describe(`Xml Type (DB: ${database})`, function () {
-    var y1, y2, y3, yconfig1, yconfig2, yconfig3, flushAll, dom1, dom2, dom3
+    var y1, y2, y3, yconfig1, yconfig2, yconfig3, flushAll, dom1, dom2, dom3 // eslint-disable-line
 
     beforeEach(async(function * (done) {
       yield createUsers(this, 3, database, 'Xml("p")')
