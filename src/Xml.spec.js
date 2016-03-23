@@ -5,9 +5,8 @@
 var Y = require('../../yjs/src/SpecHelper.js')
 require('./Xml.js')(Y)
 
-var numberOfXmlTests = 200
-var repeatXmlTests = 100
-
+var numberOfXmlTests = 100
+var repeatXmlTests = 2
 
 function compareXml (a, b) {
   if (a instanceof Text && b instanceof Text) {
