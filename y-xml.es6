@@ -1,3 +1,4 @@
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 /* global Y, MutationObserver */
 'use strict'
 
@@ -115,19 +116,13 @@ function extend (Y) {
                 if (mutation.type === 'attributes') {
                   this.attributes.set(mutation.attributeName, mutation.target.getAttribute(mutation.attributeName))
                 } else if (mutation.type === 'childList') {
-                  for (let i = 0; i < mutation.addedNodes.length; i++) {
-                    let n = mutation.addedNodes[i]
+                  Array.prototype.forEach.call(Array.prototype.reverse.call(mutation.addedNodes), n => {
                     // compute position
-                    // special case, n.nextSibling is not yet inserted. So we find the next inserted element!
-                    var pos = -1
-                    var nextSibling = n.nextSibling
-                    while (pos < 0) {
-                      if (nextSibling == null) {
-                        pos = this._content.length
-                      } else {
-                        pos = this._content.findIndex(function (c) { return c.dom === nextSibling })
-                        nextSibling = nextSibling.nextSibling
-                      }
+                    var pos
+                    if (n.nextSibling == null) {
+                      pos = this._content.length
+                    } else {
+                      pos = this._content.findIndex(function (c) { return c.dom === n.nextSibling })
                     }
                     var c
                     if (n instanceof window.Text) {
@@ -142,7 +137,7 @@ function extend (Y) {
                     content.dom = n
                     content.isInserted = true
                     _tryInsertDom(pos - 1)
-                  }
+                  })
                   Array.prototype.forEach.call(mutation.removedNodes, n => {
                     var pos = this._content.findIndex(function (c) {
                       return c.dom === n
@@ -370,3 +365,6 @@ module.exports = extend
 if (typeof Y !== 'undefined') {
   extend(Y)
 }
+
+},{}]},{},[1])
+
