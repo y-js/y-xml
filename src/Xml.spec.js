@@ -59,6 +59,18 @@ for (let database of databases) {
       dom3 = yield y3.getDom()
       flushAll = Y.utils.globalRoom.flushAll
       yield wait(10)
+
+      var promises = []
+      for (var u = 0; u < this.users.length; u++) {
+        promises.push(this.users[u].share.root.getDom())
+      }
+      var doms = yield Promise.all(promises)
+      this.vals = doms.map((dom, i) => {
+        return {
+          dom: dom,
+          y: this.users[i].share.root
+        }
+      })
       done()
     }))
     afterEach(async(function * (done) {
@@ -275,6 +287,27 @@ for (let database of databases) {
 
           done()
         }))
+        it('handles bunch of dom inserts in different orders (1)', async(function * (done) {
+          var dom = yield y1.getDom()
+          var el1 = document.createElement('input')
+          var el2 = new Text('some text')
+          dom.appendChild(el1)
+          dom.appendChild(el2)
+          yield flushAll()
+          yield compareXmlValues(this.vals)
+          done()
+        }))
+        it('handles bunch of dom inserts in different orders (2)', async(function * (done) {
+          var dom = yield y1.getDom()
+          var el1 = document.createElement('input')
+          var el2 = new Text('some text')
+          dom.appendChild(el2) // diff is here!
+          dom.appendChild(el1)
+          yield flushAll()
+          yield wait()
+          yield compareXmlValues(this.vals)
+          done()
+        }))
       })
       describeManyTimes(repeatXmlTests, `Random tests`, function () {
         var randomXmlTransactions = [
@@ -325,20 +358,6 @@ for (let database of databases) {
             }
           }
         ]
-        beforeEach(async(function * (done) {
-          var promises = []
-          for (var u = 0; u < this.users.length; u++) {
-            promises.push(this.users[u].share.root.getDom())
-          }
-          var doms = yield Promise.all(promises)
-          this.vals = doms.map((dom, i) => {
-            return {
-              dom: dom,
-              y: this.users[i].share.root
-            }
-          })
-          done()
-        }))
         it('vals.length equals users.length', async(function * (done) {
           expect(this.vals.length).toEqual(this.users.length)
           done()
