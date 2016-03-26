@@ -116,13 +116,19 @@ function extend (Y) {
                 if (mutation.type === 'attributes') {
                   this.attributes.set(mutation.attributeName, mutation.target.getAttribute(mutation.attributeName))
                 } else if (mutation.type === 'childList') {
-                  Array.prototype.forEach.call(Array.prototype.reverse.call(mutation.addedNodes), n => {
+                  for (let i = 0; i < mutation.addedNodes.length; i++) {
+                    let n = mutation.addedNodes[i]
                     // compute position
-                    var pos
-                    if (n.nextSibling == null) {
-                      pos = this._content.length
-                    } else {
-                      pos = this._content.findIndex(function (c) { return c.dom === n.nextSibling })
+                    // special case, n.nextSibling is not yet inserted. So we find the next inserted element!
+                    var pos = -1
+                    var nextSibling = n.nextSibling
+                    while (pos < 0) {
+                      if (nextSibling == null) {
+                        pos = this._content.length
+                      } else {
+                        pos = this._content.findIndex(function (c) { return c.dom === nextSibling })
+                        nextSibling = nextSibling.nextSibling
+                      }
                     }
                     var c
                     if (n instanceof window.Text) {
@@ -137,7 +143,7 @@ function extend (Y) {
                     content.dom = n
                     content.isInserted = true
                     _tryInsertDom(pos - 1)
-                  })
+                  }
                   Array.prototype.forEach.call(mutation.removedNodes, n => {
                     var pos = this._content.findIndex(function (c) {
                       return c.dom === n
