@@ -114,13 +114,13 @@ for (let database of databases) {
           event.forEach(function (x) {
             delete x.valueId // can't predict this..
             delete x._content
-            delete x.value
+            delete x.values
           })
         })
         y1.insert(0, ['some text'])
         expect(event).toEqual([{
           type: 'childInserted',
-          node: 'some text',
+          nodes: ['some text'],
           index: 0
         }])
         y1.delete(0)

@@ -21,15 +21,14 @@ function extend (Y) {
               userEvents.push({
                 type: 'childInserted',
                 index: event.index,
-                node: event.value,
-                valueId: event.valueId
+                nodes: event.values
               })
             } else if (event.type === 'delete') {
               userEvents.push({
                 type: 'childRemoved',
                 index: event.index,
                 _content: event._content,
-                value: event.value
+                values: event.values
               })
             }
           })
@@ -187,20 +186,28 @@ function extend (Y) {
                 } else if (event.type === 'attributeRemoved') {
                   dom.removeAttribute(event.name)
                 } else if (event.type === 'childInserted') {
-                  if (typeof event.node === 'string') {
-                    var textNode = new window.Text(event.node)
-                    this._content[event.index].dom = textNode
-                    _tryInsertDom(event.index)
+                  if (typeof event.nodes !== 'function') { // its string
+                    event.nodes.forEach((n, i) => {
+                      var textNode = new window.Text(n)
+                      this._content[event.index + i].dom = textNode
+                      _tryInsertDom(event.index + i)
+                    })
                   } else {
-                    event.node().then(xml => {
-                      return xml.getDom()
+                    var valId = this._content[event.index].id
+                    event.nodes().then(xmls => {
+                      return xmls[0].getDom()
                     }).then(newNode => {
                       mutualExclude(() => {
                         // This is called async. So we have to compute the position again
                         // also mutual excluse this
-                        var pos = this._content.findIndex(function (c) {
-                          return c.id === event.valueId
-                        })
+                        var pos
+                        if (event.index < this._content.length && Y.utils.compareIds(this._content[event.index].id, valId)) {
+                          pos = event.index
+                        } else {
+                          pos = this._content.findIndex(function (c) {
+                            return Y.utils.compareIds(c.id, valId)
+                          })
+                        }
                         if (pos >= 0) {
                           this._content[pos].dom = newNode
                           _tryInsertDom(pos)
@@ -209,11 +216,12 @@ function extend (Y) {
                     })
                   }
                 } else if (event.type === 'childRemoved') {
-                  var d = event._content.dom
-                  if (d != null) {
-                    d.remove()
-                  }
-                  _tryInsertDom(event.index - 1)
+                  event._content.forEach(function (c) {
+                    if (c.dom != null) {
+                      c.dom.remove()
+                    }
+                    _tryInsertDom(event.index - 1)
+                  })
                 }
               })
             })
@@ -251,7 +259,6 @@ function extend (Y) {
           this.dom = this._bindToDom(dom)
           return this.dom
         }
-        return this.dom
       }
       getDom () {
         if (this.dom == null) {
@@ -348,16 +355,21 @@ function extend (Y) {
         op.requires = [properties._model] // XML requires that 'properties' exists
       },
       initType: function * YXmlInitializer (os, model, init) {
-        var _content = yield* Y.Struct.List.map.call(this, model, function (op) {
-          var c = {
-            id: JSON.stringify(op.id)
-          }
+        var _content = []
+        yield* Y.Struct.List.map.call(this, model, function (op) {
           if (op.hasOwnProperty('opContent')) {
-            c.type = op.opContent
+            _content.push({
+              id: op.id,
+              type: op.opContent
+            })
           } else {
-            c.val = op.content
+            op.content.forEach(function (c, i) {
+              _content.push({
+                id: [op.id[0], op.id[1] + i],
+                val: op.content[i]
+              })
+            })
           }
-          return c
         })
         var properties = yield* this.getType(model.requires[0]) // get the only required op
         return new YXml(os, model.id, _content, properties, model.info.tagname, init)
