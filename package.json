@@ -52,8 +52,8 @@
     "standard": "^5.3.1"
   },
   "peerDependencies": {
-    "y-array": "^8.0.0",
-    "y-map": "^8.0.0",
-    "yjs": "^10.0.0"
+    "y-array": "^9.0.0",
+    "y-map": "^9.0.0",
+    "yjs": "^11.0.0"
   }
 }
