@@ -5,8 +5,8 @@
 var Y = require('../../yjs/src/SpecHelper.js')
 require('./Xml.js')(Y)
 
-var numberOfXmlTests = 100
-var repeatXmlTests = 2
+var numberOfXmlTests = 10
+var repeatXmlTests = 200
 
 function compareXml (a, b) {
   if (a instanceof Text && b instanceof Text) {
@@ -94,16 +94,16 @@ for (let database of databases) {
           event = e
         })
         y1.attributes.set('key', 'value')
-        expect(event).toEqual([{
+        expect(event).toEqual({
           type: 'attributeChanged',
           value: 'value',
           name: 'key'
-        }])
+        })
         y1.attributes.delete('key')
-        expect(event).toEqual([{
+        expect(event).toEqual({
           type: 'attributeRemoved',
           name: 'key'
-        }])
+        })
         yield wait(50)
         done()
       }))
@@ -111,23 +111,21 @@ for (let database of databases) {
         var event
         y1.observe(function (e) {
           event = e
-          event.forEach(function (x) {
-            delete x.valueId // can't predict this..
-            delete x._content
-            delete x.values
-          })
+          delete event.valueId // can't predict this..
+          delete event._content
+          delete event.values
         })
         y1.insert(0, ['some text'])
-        expect(event).toEqual([{
+        expect(event).toEqual({
           type: 'childInserted',
           nodes: ['some text'],
           index: 0
-        }])
+        })
         y1.delete(0)
-        expect(event).toEqual([{
+        expect(event).toEqual({
           type: 'childRemoved',
           index: 0
-        }])
+        })
         yield wait(50)
         done()
       }))
@@ -312,7 +310,7 @@ for (let database of databases) {
       describeManyTimes(repeatXmlTests, `Random tests`, function () {
         var randomXmlTransactions = [
           function attributeChange (a) {
-            a.dom.setAttribute(getRandomString(), getRandomString())
+            a.dom.setAttribute(getRandomString() + 'x', getRandomString())
           },
           function insertText (a) {
             var i = getRandomNumber(a.dom.childNodes.length + 1) // also expect succ to be undefined!
@@ -322,7 +320,7 @@ for (let database of databases) {
           function insertDom (a) {
             var i = getRandomNumber(a.dom.childNodes.length + 1) // also expect succ to be undefined!
             var succ = a.dom.childNodes[i]
-            a.dom.insertBefore(document.createElement(getRandomString()), succ)
+            a.dom.insertBefore(document.createElement(getRandomString() + 'a'), succ)
           },
           function deleteChild (a) {
             var i = getRandomNumber(a.dom.childNodes.length)
@@ -344,7 +342,7 @@ for (let database of databases) {
             if (dom != null) {
               var i = getRandomNumber(dom.childNodes.length + 1) // also expect succ to be undefined!
               var succ = dom.childNodes[i]
-              dom.insertBefore(document.createElement(getRandomString()), succ)
+              dom.insertBefore(document.createElement(getRandomString() + 'a'), succ)
             }
           },
           function deleteChildSecondLayer (a) {
