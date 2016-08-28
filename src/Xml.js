@@ -170,13 +170,9 @@ function extend (Y) {
             } else if (event.type === 'attributeRemoved') {
               dom.removeAttribute(event.name)
             } else if (event.type === 'childInserted') {
-              if (typeof event.nodes !== 'function') { // its string
-                event.nodes.forEach((n, i) => {
-                  var textNode = new window.Text(n)
-                  this._content[event.index + i].dom = textNode
-                  _tryInsertDom(event.index + i)
-                })
-              } else {
+              if (event.nodes.length === 1 && event.nodes[0] instanceof YXml) {
+                // a new xml node was inserted.
+                // TODO: consider the case that nodes contains mixed text & types (currently not implemented in yjs)
                 var valId = this._content[event.index].id
                 if (event.nodes.length > 1) { throw new Error('This case is not handled, you\'ll run into consistency issues. Contact the developer')}
                 var newNode = event.nodes[0].getDom() 
@@ -194,6 +190,12 @@ function extend (Y) {
                   this._content[pos].dom = newNode
                   _tryInsertDom(pos)
                 }
+              } else {
+                event.nodes.forEach((n, i) => {
+                  var textNode = new window.Text(n)
+                  this._content[event.index + i].dom = textNode
+                  _tryInsertDom(event.index + i)
+                })
               }
             } else if (event.type === 'childRemoved') {
               event._content.forEach(function (c) {
@@ -251,12 +253,12 @@ function extend (Y) {
             if (c.hasOwnProperty('val')) {
               children.push([new window.Text(c.val), c])
             } else {
-              var type = this.getType(c.type)
+              var type = this.os.getType(c.type)
               children.push([type.getDom(), c])
             }
           }
           this.dom = this._bindToDom(dom)
-          children.forEach(function (ins, i) {
+          children.forEach((ins, i) => {
             // need to find position again, because this could be deleted (though this is very unlikely)
             var pos
             if (this._content[i] === ins[1]) {
@@ -346,12 +348,12 @@ function extend (Y) {
           var typestruct = Y.Map.typeDefinition.struct
           id = ['_', typestruct + '_' + 'Map_' + model.id[1]]
         }
-        var properties = this.createType(Y.Map(), id)
+        var properties = os.createType(Y.Map(), id)
         model.info = {
           tagname: args.tagname
         }
         model.requires = [properties._model] // XML requires that 'properties' exists
-        return new YXml(os, model.id, [], properties, model.info)
+        return new YXml(os, model.id, [], properties, model.info.tagname, args)
       }
     }))
   })
