@@ -113,11 +113,11 @@ function extend (Y) {
                 for (let i = 0; i < mutation.addedNodes.length; i++) {
                   let n = mutation.addedNodes[i]
                   if (this._content.some(function (c) { return c.dom === n })) {
-                    // check if it already exists (since this method is called asynchronously) 
+                    // check if it already exists (since this method is called asynchronously)
                     continue
                   }
                   if (n instanceof window.Text && n.textContent === '') {
-                    // check if textnode and empty content (sometime happens.. ) 
+                    // check if textnode and empty content (sometime happens.. )
                     //   TODO - you could also check if the inserted node actually exists in the
                     //          dom (in order to cover more potential cases)
                     n.remove()
@@ -191,8 +191,8 @@ function extend (Y) {
                 // a new xml node was inserted.
                 // TODO: consider the case that nodes contains mixed text & types (currently not implemented in yjs)
                 var valId = this._content[event.index].id
-                if (event.nodes.length > 1) { throw new Error('This case is not handled, you\'ll run into consistency issues. Contact the developer')}
-                var newNode = event.nodes[0].getDom() 
+                if (event.nodes.length > 1) { throw new Error('This case is not handled, you\'ll run into consistency issues. Contact the developer') }
+                var newNode = event.nodes[0].getDom()
                 // This is called async. So we have to compute the position again
                 // also mutual excluse this
                 var pos
