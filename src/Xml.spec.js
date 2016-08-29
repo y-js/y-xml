@@ -5,7 +5,7 @@
 var Y = require('../../yjs/src/SpecHelper.js')
 require('./Xml.js')(Y)
 
-var numberOfXmlTests = 100
+var numberOfXmlTests = 50
 var repeatXmlTests = 200
 
 function compareXml (a, b) {
@@ -54,9 +54,9 @@ for (let database of databases) {
       y1 = (yconfig1 = this.users[0]).share.root
       y2 = (yconfig2 = this.users[1]).share.root
       y3 = (yconfig3 = this.users[2]).share.root
-      dom1 = yield y1.getDom()
-      dom2 = yield y2.getDom()
-      dom3 = yield y3.getDom()
+      dom1 = y1.getDom()
+      dom2 = y2.getDom()
+      dom3 = y3.getDom()
       flushAll = Y.utils.globalRoom.flushAll
       yield wait(10)
 
@@ -133,33 +133,33 @@ for (let database of databases) {
     if (typeof window !== 'undefined') {
       describe('Dom Tests', function () {
         it('dom changes on y attribute change', async(function * (done) {
-          var dom = yield y1.getDom()
+          var dom = y1.getDom()
           y1.attributes.set('height', '100px')
           expect(dom.getAttribute('height')).toEqual('100px')
           done()
         }))
         it('y changes on dom attribute change', async(function * (done) {
-          var dom = yield y1.getDom()
+          var dom = y1.getDom()
           dom.setAttribute('height', '100px')
           yield wait()
           expect(y1.attributes.get('height')).toEqual('100px')
           done()
         }))
         it('dom changes on y attribute change (class)', async(function * (done) {
-          var dom = yield y1.getDom()
+          var dom = y1.getDom()
           y1.attributes.set('class', 'stuffy stuff')
           expect(dom.getAttribute('class')).toEqual('stuffy stuff')
           done()
         }))
         it('y changes on dom attribute change (class)', async(function * (done) {
-          var dom = yield y1.getDom()
+          var dom = y1.getDom()
           dom.setAttribute('class', 'stuffy stuff')
           yield wait()
           expect(y1.attributes.get('class')).toEqual('stuffy stuff')
           done()
         }))
         it('y changes on dom element insert (Text)', async(function * (done) {
-          var dom = yield y1.getDom()
+          var dom = y1.getDom()
           var newNode = new Text('text')
           dom.insertBefore(newNode, null)
           yield wait()
@@ -167,7 +167,7 @@ for (let database of databases) {
           done()
         }))
         it('dom changes on y element insert (Text)', async(function * (done) {
-          var dom = yield y1.getDom()
+          var dom = y1.getDom()
           y1.insert(0, ['text'])
           yield wait()
           expect(dom.childNodes[0].textContent).toEqual('text')
@@ -177,8 +177,8 @@ for (let database of databases) {
           var newNode = document.createElement('DIV')
           dom1.insertBefore(newNode, null)
           yield wait()
-          var e = yield y1.get(0)
-          var tagname = yield e.tagname
+          var e = y1.get(0)
+          var tagname = e.tagname
           expect(tagname).toEqual('DIV')
           expect(y1.length).toEqual(1)
           expect(dom1.childNodes.length).toEqual(1)
@@ -189,7 +189,7 @@ for (let database of databases) {
           done()
         }))
         it('dom changes on y element insert & delete (Element)', async(function * (done) {
-          var dom = yield y1.getDom()
+          var dom = y1.getDom()
           y1.insert(0, [Y.Xml('DIV')])
           yield wait(100)
           expect(dom.childNodes[0].tagName).toEqual('DIV')
@@ -202,7 +202,7 @@ for (let database of databases) {
           done()
         }))
         it('delete consecutive (Text)', async(function * (done) {
-          var dom = yield y1.getDom()
+          var dom = y1.getDom()
           y1.insert(0, ['1', '2', '3'])
           yield wait()
           y1.delete(1, 2)
@@ -213,7 +213,7 @@ for (let database of databases) {
           done()
         }))
         it('delete non-consecutive (1) (Text)', async(function * (done) {
-          var dom = yield y1.getDom()
+          var dom = y1.getDom()
           y1.insert(0, ['1', '2', '3'])
           yield wait()
           y1.delete(0, 1)
@@ -225,7 +225,7 @@ for (let database of databases) {
           done()
         }))
         it('delete non-consecutive (2) (Text)', async(function * (done) {
-          var dom = yield y1.getDom()
+          var dom = y1.getDom()
           y1.insert(0, ['1', '2', '3'])
           yield wait()
           y1.delete(0, 1)
@@ -237,7 +237,7 @@ for (let database of databases) {
           done()
         }))
         it('delete consecutive (Element)', async(function * (done) {
-          var dom = yield y1.getDom()
+          var dom = y1.getDom()
           y1.insert(0, [Y.Xml('A'), Y.Xml('B'), Y.Xml('C')])
           yield wait()
           y1.delete(1, 2)
@@ -248,7 +248,7 @@ for (let database of databases) {
           done()
         }))
         it('delete non-consecutive (1) (Element)', async(function * (done) {
-          var dom = yield y1.getDom()
+          var dom = y1.getDom()
           y1.insert(0, [Y.Xml('A'), Y.Xml('B'), Y.Xml('C')])
           yield wait()
           y1.delete(0, 1)
@@ -260,7 +260,7 @@ for (let database of databases) {
           done()
         }))
         it('delete non-consecutive (2) (Element)', async(function * (done) {
-          var dom = yield y1.getDom()
+          var dom = y1.getDom()
           y1.insert(0, [Y.Xml('A'), Y.Xml('B'), Y.Xml('C')])
           yield wait()
           y1.delete(0, 1)
@@ -286,7 +286,7 @@ for (let database of databases) {
           done()
         }))
         it('handles bunch of dom inserts in different orders (1)', async(function * (done) {
-          var dom = yield y1.getDom()
+          var dom = y1.getDom()
           var el1 = document.createElement('input')
           var el2 = new Text('some text')
           dom.appendChild(el1)
@@ -296,7 +296,7 @@ for (let database of databases) {
           done()
         }))
         it('handles bunch of dom inserts in different orders (2)', async(function * (done) {
-          var dom = yield y1.getDom()
+          var dom = y1.getDom()
           var el1 = document.createElement('input')
           var el2 = new Text('some text')
           dom.appendChild(el2) // diff is here!

@@ -54,18 +54,23 @@ function extend (Y) {
         super._destroy()
       }
       insert (pos, types) {
+        var _types = []
         if (!Array.isArray(types)) {
           throw new Error('Expected an Array of content!')
         }
-        types.forEach(function (v) {
+        for (var i = 0; i < types.length; i++) {
+          var v = types[i]
           var t = Y.utils.isTypeDefinition(v)
           if (!(v != null && (
                        typeof v === 'string' ||
                        (t && t[0].class === YXml)
              ))) {
             throw new Error('Expected Y.Xml type or String!')
+          } else if (typeof v === 'string' && v.length === 0) {
+            continue // if empty string
           }
-        })
+          _types.push(v)
+        }
         super.insert(pos, types)
       }
       // binds to a dom element
@@ -99,10 +104,25 @@ function extend (Y) {
           mutualExclude(() => {
             mutations.forEach(mutation => {
               if (mutation.type === 'attributes') {
-                this.attributes.set(mutation.attributeName, mutation.target.getAttribute(mutation.attributeName))
+                var name = mutation.attributeName
+                var val = mutation.target.getAttribute(mutation.attributeName)
+                if (this.attributes.get(name) !== val) {
+                  this.attributes.set(name, val)
+                }
               } else if (mutation.type === 'childList') {
                 for (let i = 0; i < mutation.addedNodes.length; i++) {
                   let n = mutation.addedNodes[i]
+                  if (this._content.some(function (c) { return c.dom === n })) {
+                    // check if it already exists (since this method is called asynchronously) 
+                    continue
+                  }
+                  if (n instanceof window.Text && n.textContent === '') {
+                    // check if textnode and empty content (sometime happens.. ) 
+                    //   TODO - you could also check if the inserted node actually exists in the
+                    //          dom (in order to cover more potential cases)
+                    n.remove()
+                    continue
+                  }
                   // compute position
                   // special case, n.nextSibling is not yet inserted. So we find the next inserted element!
                   var pos = -1
@@ -126,14 +146,16 @@ function extend (Y) {
                   this.insert(pos, [c])
                   var content = this._content[pos]
                   content.dom = n
-                  content.isInserted = true
-                  _tryInsertDom(pos - 1)
                 }
                 Array.prototype.forEach.call(mutation.removedNodes, n => {
                   var pos = this._content.findIndex(function (c) {
                     return c.dom === n
                   })
-                  this.delete(pos)
+                  if (pos >= 0) {
+                    this.delete(pos)
+                  } else {
+                    throw new Error('An unexpected condition occured (deleted node does not exist in the model)!')
+                  }
                 })
               }
             })
@@ -148,19 +170,14 @@ function extend (Y) {
           var succ
           if (pos + 1 < this._content.length) {
             succ = this._content[pos + 1]
+            if (succ.dom == null) throw new Error('Unexpected behavior') // shouldn't happen anymore!
           } else {
             // pseudo successor
             succ = {
-              isInserted: true,
               dom: null
             }
           }
-          while (pos >= 0 && succ.isInserted && c.dom != null && !c.isInserted) {
-            dom.insertBefore(c.dom, succ.dom)
-            c.isInserted = true
-            succ = c
-            c = this._content[--pos]
-          }
+          dom.insertBefore(c.dom, succ.dom)
         }
         this._tryInsertDom = _tryInsertDom
         this.observe(event => {
@@ -191,18 +208,18 @@ function extend (Y) {
                   _tryInsertDom(pos)
                 }
               } else {
-                event.nodes.forEach((n, i) => {
+                for (var i = event.nodes.length - 1; i >= 0; i--) {
+                  var n = event.nodes[i]
                   var textNode = new window.Text(n)
                   this._content[event.index + i].dom = textNode
                   _tryInsertDom(event.index + i)
-                })
+                }
               }
             } else if (event.type === 'childRemoved') {
               event._content.forEach(function (c) {
                 if (c.dom != null) {
                   c.dom.remove()
                 }
-                _tryInsertDom(event.index - 1)
               })
             }
           })
@@ -222,7 +239,7 @@ function extend (Y) {
             var attr = dom.attributes[i]
             this.attributes.set(attr.name, attr.value)
           }
-          this.insert(0, Array.prototype.map.call(dom.childNodes, function (c, i) {
+          this.insert(0, Array.prototype.map.call(dom.childNodes, (c, i) => {
             if (c instanceof window.Element) {
               return Y.Xml(c)
             } else if (c instanceof window.Text) {
@@ -234,7 +251,6 @@ function extend (Y) {
           Array.prototype.forEach.call(dom.childNodes, (dom, i) => {
             var c = this._content[i]
             c.dom = dom
-            c.isInserted = true
           })
           this.dom = this._bindToDom(dom)
           return this.dom
@@ -247,35 +263,16 @@ function extend (Y) {
           this.attributes.keysPrimitives().forEach(key => {
             dom.setAttribute(key, this.attributes.get(key))
           })
-          var children = [] // [dom, content_i]
           for (var i = 0; i < this._content.length; i++) {
             let c = this._content[i]
             if (c.hasOwnProperty('val')) {
-              children.push([new window.Text(c.val), c])
+              c.dom = new window.Text(c.val)
             } else {
-              var type = this.os.getType(c.type)
-              children.push([type.getDom(), c])
+              c.dom = this.os.getType(c.type).getDom()
             }
+            dom.appendChild(c.dom)
           }
           this.dom = this._bindToDom(dom)
-          children.forEach((ins, i) => {
-            // need to find position again, because this could be deleted (though this is very unlikely)
-            var pos
-            if (this._content[i] === ins[1]) {
-              // likeliest case
-              pos = i
-            } else {
-              // find content again
-              pos = this._content.findIndex(function (c) {
-                return c === ins[1]
-              })
-            }
-            if (pos >= 0) {
-              // not deleted, insert dom
-              ins[1].dom = ins[0]
-              this._tryInsertDom(pos)
-            }
-          })
         }
         return this.dom
       }
@@ -324,12 +321,14 @@ function extend (Y) {
       },
       initType: function * YXmlInitializer (os, model, init) {
         var _content = []
+        var _types = []
         yield* Y.Struct.List.map.call(this, model, function (op) {
           if (op.hasOwnProperty('opContent')) {
             _content.push({
               id: op.id,
               type: op.opContent
             })
+            _types.push(op.opContent)
           } else {
             op.content.forEach(function (c, i) {
               _content.push({
@@ -339,6 +338,9 @@ function extend (Y) {
             })
           }
         })
+        for (var i = 0; i < _types.length; i++) {
+          yield* this.store.initType.call(this, _types[i])
+        }
         var properties = yield* os.initType.call(this, model.requires[0]) // get the only required op
         return new YXml(os, model.id, _content, properties, model.info.tagname, model.info)
       },
