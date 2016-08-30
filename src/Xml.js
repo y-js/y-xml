@@ -307,19 +307,7 @@ function extend (Y) {
           throw new Error('Y.Xml requires an argument which is a string!')
         }
       },
-      appendAdditionalInfo: function * (op, init) {
-        var id = null
-        if (op.id[0] === '_') {
-          var typestruct = Y.Map.typeDefinition.struct
-          id = ['_', typestruct + '_' + 'Map_' + op.id[1]]
-        }
-        var properties = yield* this.createType(Y.Map(), id)
-        op.info = {
-          tagname: init.tagname
-        }
-        op.requires = [properties._model] // XML requires that 'properties' exists
-      },
-      initType: function * YXmlInitializer (os, model, init) {
+      initType: function * YXmlInitializer (os, model, args) {
         var _content = []
         var _types = []
         yield* Y.Struct.List.map.call(this, model, function (op) {
@@ -339,9 +327,24 @@ function extend (Y) {
           }
         })
         for (var i = 0; i < _types.length; i++) {
-          yield* this.store.initType.call(this, _types[i])
+          yield* os.initType.call(this, _types[i])
         }
-        var properties = yield* os.initType.call(this, model.requires[0]) // get the only required op
+        // if this type is defined in y.share.*, initType is called instead of createType!
+        // So we have to initialize it properly
+        var properties
+        if (model.id[0] === '_') {
+          var typestruct = Y.Map.typeDefinition.struct
+          var id = ['_', typestruct + '_' + 'Map_' + model.id[1]]
+          properties = yield* os.initType.call(this, id)
+
+          model.requires = [properties._model]
+          model.info = {
+            tagname: args.tagname
+          }
+          yield* this.setOperation(model)
+        } else {
+          properties = yield* os.initType.call(this, model.requires[0]) // get the only required op
+        }
         return new YXml(os, model.id, _content, properties, model.info.tagname, model.info)
       },
       createType: function YXmlCreator (os, model, args) {
