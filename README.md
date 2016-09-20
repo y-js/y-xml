@@ -79,6 +79,12 @@ Y({
   * An operation conflicts with another operation if it intends to be inserted at the same position.
   * Overall worst case complexety: O(|conflicts|!)
 
+## Changelog
+
+### 10.0.0
+* Retrieving the dom is a synchronous operation now
+* Relies on Yjs@^12.0.0
+
 ## License
 Yjs is licensed under the [MIT License](./LICENSE).
 

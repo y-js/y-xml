@@ -55,164 +55,177 @@ function extend (Y) {
         super._destroy()
       }
       insert (pos, types) {
+        var _types = []
         if (!Array.isArray(types)) {
           throw new Error('Expected an Array of content!')
         }
-        types.forEach(function (v) {
+        for (var i = 0; i < types.length; i++) {
+          var v = types[i]
           var t = Y.utils.isTypeDefinition(v)
           if (!(v != null && (
                        typeof v === 'string' ||
                        (t && t[0].class === YXml)
              ))) {
             throw new Error('Expected Y.Xml type or String!')
+          } else if (typeof v === 'string' && v.length === 0) {
+            continue // if empty string
           }
-        })
+          _types.push(v)
+        }
         super.insert(pos, types)
       }
       // binds to a dom element
       // Only call if dom and YXml are isomorph
       _bindToDom (dom) {
-        return new Promise(resolve => {
-          // this function makes sure that either the
-          // dom event is executed, or the yjs observer is executed
-          var token = true
-          var mutualExclude = f => {
-            // take and process current records
-            var records = this._domObserver.takeRecords()
-            if (records.length > 0) {
-              this._domObserverListener(records)
-            }
-            if (token) {
-              token = false
-              try {
-                f()
-              } catch (e) {
-                // discard created records
-                this._domObserver.takeRecords()
-                token = true
-                throw e
-              }
+        // this function makes sure that either the
+        // dom event is executed, or the yjs observer is executed
+        var token = true
+        var mutualExclude = f => {
+          // take and process current records
+          var records = this._domObserver.takeRecords()
+          if (records.length > 0) {
+            this._domObserverListener(records)
+          }
+          if (token) {
+            token = false
+            try {
+              f()
+            } catch (e) {
+              // discard created records
               this._domObserver.takeRecords()
               token = true
+              throw e
             }
+            this._domObserver.takeRecords()
+            token = true
           }
-          this._mutualExclude = mutualExclude
-          this._domObserverListener = mutations => {
-            mutualExclude(() => {
-              mutations.forEach(mutation => {
-                if (mutation.type === 'attributes') {
-                  this.attributes.set(mutation.attributeName, mutation.target.getAttribute(mutation.attributeName))
-                } else if (mutation.type === 'childList') {
-                  for (let i = 0; i < mutation.addedNodes.length; i++) {
-                    let n = mutation.addedNodes[i]
-                    // compute position
-                    // special case, n.nextSibling is not yet inserted. So we find the next inserted element!
-                    var pos = -1
-                    var nextSibling = n.nextSibling
-                    while (pos < 0) {
-                      if (nextSibling == null) {
-                        pos = this._content.length
-                      } else {
-                        pos = this._content.findIndex(function (c) { return c.dom === nextSibling })
-                        nextSibling = nextSibling.nextSibling
-                      }
-                    }
-                    var c
-                    if (n instanceof window.Text) {
-                      c = n.textContent
-                    } else if (n instanceof window.Element) {
-                      c = Y.Xml(n)
+        }
+        this._mutualExclude = mutualExclude
+        this._domObserverListener = mutations => {
+          mutualExclude(() => {
+            mutations.forEach(mutation => {
+              if (mutation.type === 'attributes') {
+                var name = mutation.attributeName
+                var val = mutation.target.getAttribute(mutation.attributeName)
+                if (this.attributes.get(name) !== val) {
+                  this.attributes.set(name, val)
+                }
+              } else if (mutation.type === 'childList') {
+                for (let i = 0; i < mutation.addedNodes.length; i++) {
+                  let n = mutation.addedNodes[i]
+                  if (this._content.some(function (c) { return c.dom === n })) {
+                    // check if it already exists (since this method is called asynchronously)
+                    continue
+                  }
+                  if (n instanceof window.Text && n.textContent === '') {
+                    // check if textnode and empty content (sometime happens.. )
+                    //   TODO - you could also check if the inserted node actually exists in the
+                    //          dom (in order to cover more potential cases)
+                    n.remove()
+                    continue
+                  }
+                  // compute position
+                  // special case, n.nextSibling is not yet inserted. So we find the next inserted element!
+                  var pos = -1
+                  var nextSibling = n.nextSibling
+                  while (pos < 0) {
+                    if (nextSibling == null) {
+                      pos = this._content.length
                     } else {
-                      throw new Error('Unsupported XML Element found. Synchronization will no longer work!')
+                      pos = this._content.findIndex(function (c) { return c.dom === nextSibling })
+                      nextSibling = nextSibling.nextSibling
                     }
-                    this.insert(pos, [c])
-                    var content = this._content[pos]
-                    content.dom = n
-                    content.isInserted = true
-                    _tryInsertDom(pos - 1)
                   }
-                  Array.prototype.forEach.call(mutation.removedNodes, n => {
-                    var pos = this._content.findIndex(function (c) {
-                      return c.dom === n
-                    })
+                  var c
+                  if (n instanceof window.Text) {
+                    c = n.textContent
+                  } else if (n instanceof window.Element) {
+                    c = Y.Xml(n)
+                  } else {
+                    throw new Error('Unsupported XML Element found. Synchronization will no longer work!')
+                  }
+                  this.insert(pos, [c])
+                  var content = this._content[pos]
+                  content.dom = n
+                }
+                Array.prototype.forEach.call(mutation.removedNodes, n => {
+                  var pos = this._content.findIndex(function (c) {
+                    return c.dom === n
+                  })
+                  if (pos >= 0) {
                     this.delete(pos)
-                  })
-                }
-              })
-            })
-          }
-          this._domObserver = new MutationObserver(this._domObserverListener)
-          this._domObserver.observe(dom, { attributes: true, childList: true })
-          // In order to insert a new node, successor needs to be inserted
-          // when c.dom can be inserted, try to insert the predecessors too
-          var _tryInsertDom = (pos) => {
-            var c = this._content[pos]
-            var succ
-            if (pos + 1 < this._content.length) {
-              succ = this._content[pos + 1]
-            } else {
-              // pseudo successor
-              succ = {
-                isInserted: true,
-                dom: null
-              }
-            }
-            while (pos >= 0 && succ.isInserted && c.dom != null && !c.isInserted) {
-              dom.insertBefore(c.dom, succ.dom)
-              c.isInserted = true
-              succ = c
-              c = this._content[--pos]
-            }
-          }
-          this._tryInsertDom = _tryInsertDom
-          this.observe(event => {
-            mutualExclude(() => {
-              if (event.type === 'attributeChanged') {
-                dom.setAttribute(event.name, event.value)
-              } else if (event.type === 'attributeRemoved') {
-                dom.removeAttribute(event.name)
-              } else if (event.type === 'childInserted') {
-                if (typeof event.nodes !== 'function') { // its string
-                  event.nodes.forEach((n, i) => {
-                    var textNode = new window.Text(n)
-                    this._content[event.index + i].dom = textNode
-                    _tryInsertDom(event.index + i)
-                  })
-                } else {
-                  var valId = this._content[event.index].id
-                  event.nodes().then(xmls => {
-                    return xmls[0].getDom()
-                  }).then(newNode => {
-                    mutualExclude(() => {
-                      // This is called async. So we have to compute the position again
-                      // also mutual excluse this
-                      var pos
-                      if (event.index < this._content.length && Y.utils.compareIds(this._content[event.index].id, valId)) {
-                        pos = event.index
-                      } else {
-                        pos = this._content.findIndex(function (c) {
-                          return Y.utils.compareIds(c.id, valId)
-                        })
-                      }
-                      if (pos >= 0) {
-                        this._content[pos].dom = newNode
-                        _tryInsertDom(pos)
-                      }
-                    })
-                  })
-                }
-              } else if (event.type === 'childRemoved') {
-                event._content.forEach(function (c) {
-                  if (c.dom != null) {
-                    c.dom.remove()
+                  } else {
+                    throw new Error('An unexpected condition occured (deleted node does not exist in the model)!')
                   }
-                  _tryInsertDom(event.index - 1)
                 })
               }
             })
           })
-          resolve(dom)
+        }
+        this._domObserver = new MutationObserver(this._domObserverListener)
+        this._domObserver.observe(dom, { attributes: true, childList: true })
+        // In order to insert a new node, successor needs to be inserted
+        // when c.dom can be inserted, try to insert the predecessors too
+        var _tryInsertDom = (pos) => {
+          var c = this._content[pos]
+          var succ
+          if (pos + 1 < this._content.length) {
+            succ = this._content[pos + 1]
+            if (succ.dom == null) throw new Error('Unexpected behavior') // shouldn't happen anymore!
+          } else {
+            // pseudo successor
+            succ = {
+              dom: null
+            }
+          }
+          dom.insertBefore(c.dom, succ.dom)
+        }
+        this._tryInsertDom = _tryInsertDom
+        this.observe(event => {
+          mutualExclude(() => {
+            if (event.type === 'attributeChanged') {
+              dom.setAttribute(event.name, event.value)
+            } else if (event.type === 'attributeRemoved') {
+              dom.removeAttribute(event.name)
+            } else if (event.type === 'childInserted') {
+              if (event.nodes.length === 1 && event.nodes[0] instanceof YXml) {
+                // a new xml node was inserted.
+                // TODO: consider the case that nodes contains mixed text & types (currently not implemented in yjs)
+                var valId = this._content[event.index].id
+                if (event.nodes.length > 1) { throw new Error('This case is not handled, you\'ll run into consistency issues. Contact the developer') }
+                var newNode = event.nodes[0].getDom()
+                // This is called async. So we have to compute the position again
+                // also mutual excluse this
+                var pos
+                if (event.index < this._content.length && Y.utils.compareIds(this._content[event.index].id, valId)) {
+                  pos = event.index
+                } else {
+                  pos = this._content.findIndex(function (c) {
+                    return Y.utils.compareIds(c.id, valId)
+                  })
+                }
+                if (pos >= 0) {
+                  this._content[pos].dom = newNode
+                  _tryInsertDom(pos)
+                }
+              } else {
+                for (var i = event.nodes.length - 1; i >= 0; i--) {
+                  var n = event.nodes[i]
+                  var textNode = new window.Text(n)
+                  this._content[event.index + i].dom = textNode
+                  _tryInsertDom(event.index + i)
+                }
+              }
+            } else if (event.type === 'childRemoved') {
+              event._content.forEach(function (c) {
+                if (c.dom != null) {
+                  c.dom.remove()
+                }
+              })
+            }
+          })
         })
+        return dom
       }
       _setDom (dom) {
         if (this.dom != null) {
@@ -227,7 +240,7 @@ function extend (Y) {
             var attr = dom.attributes[i]
             this.attributes.set(attr.name, attr.value)
           }
-          this.insert(0, Array.prototype.map.call(dom.childNodes, function (c, i) {
+          this.insert(0, Array.prototype.map.call(dom.childNodes, (c, i) => {
             if (c instanceof window.Element) {
               return Y.Xml(c)
             } else if (c instanceof window.Text) {
@@ -239,7 +252,6 @@ function extend (Y) {
           Array.prototype.forEach.call(dom.childNodes, (dom, i) => {
             var c = this._content[i]
             c.dom = dom
-            c.isInserted = true
           })
           this.dom = this._bindToDom(dom)
           return this.dom
@@ -252,47 +264,16 @@ function extend (Y) {
           this.attributes.keysPrimitives().forEach(key => {
             dom.setAttribute(key, this.attributes.get(key))
           })
-          return new Promise((resolve) => {
-            var self = this
-            this.os.requestTransaction(function *() {
-              var children = [] // <Promise([dom, content_i])>
-              for (var i = 0; i < self._content.length; i++) {
-                let c = self._content[i]
-                if (c.hasOwnProperty('val')) {
-                  children.push([new window.Text(c.val), c])
-                } else {
-                  var type = yield* this.getType(c.type)
-                  children.push(type.getDom().then(function (dom) {
-                    return [dom, c]
-                  }))
-                }
-              }
-              self.dom = self._bindToDom(dom)
-              Promise.all(children).then(function (inserts) {
-                self._mutualExclude(function () {
-                  inserts.forEach(function (ins, i) {
-                    // need to find position again, because this could be deleted (though this is very unlikely)
-                    var pos
-                    if (self._content[i] === ins[1]) {
-                      // likeliest case
-                      pos = i
-                    } else {
-                      // find content again
-                      pos = self._content.findIndex(function (c) {
-                        return c === ins[1]
-                      })
-                    }
-                    if (pos >= 0) {
-                      // not deleted, insert dom
-                      ins[1].dom = ins[0]
-                      self._tryInsertDom(pos)
-                    }
-                  })
-                  self.dom.then(resolve)
-                })
-              })
-            })
-          })
+          for (var i = 0; i < this._content.length; i++) {
+            let c = this._content[i]
+            if (c.hasOwnProperty('val')) {
+              c.dom = new window.Text(c.val)
+            } else {
+              c.dom = this.os.getType(c.type).getDom()
+            }
+            dom.appendChild(c.dom)
+          }
+          this.dom = this._bindToDom(dom)
         }
         return this.dom
       }
@@ -309,7 +290,7 @@ function extend (Y) {
         yield* Y.Array.typeDefinition['class'].prototype._changed.apply(this, arguments)
       }
     }
-    Y.extend('Xml', new Y.utils.CustomType({
+    Y.extend('Xml', new Y.utils.CustomTypeDefinition({
       name: 'Xml',
       class: YXml,
       struct: 'List',
@@ -327,26 +308,16 @@ function extend (Y) {
           throw new Error('Y.Xml requires an argument which is a string!')
         }
       },
-      appendAdditionalInfo: function * (op, init) {
-        var id = null
-        if (op.id[0] === '_') {
-          var typestruct = Y.Map.typeDefinition.struct
-          id = ['_', typestruct + '_' + 'Map_' + op.id[1]]
-        }
-        var properties = yield* this.createType(Y.Map(), id)
-        op.info = {
-          tagname: init.tagname
-        }
-        op.requires = [properties._model] // XML requires that 'properties' exists
-      },
-      initType: function * YXmlInitializer (os, model, init) {
+      initType: function * YXmlInitializer (os, model, args) {
         var _content = []
+        var _types = []
         yield* Y.Struct.List.map.call(this, model, function (op) {
           if (op.hasOwnProperty('opContent')) {
             _content.push({
               id: op.id,
               type: op.opContent
             })
+            _types.push(op.opContent)
           } else {
             op.content.forEach(function (c, i) {
               _content.push({
@@ -356,8 +327,39 @@ function extend (Y) {
             })
           }
         })
-        var properties = yield* this.getType(model.requires[0]) // get the only required op
-        return new YXml(os, model.id, _content, properties, model.info.tagname, init)
+        for (var i = 0; i < _types.length; i++) {
+          yield* os.initType.call(this, _types[i])
+        }
+        // if this type is defined in y.share.*, initType is called instead of createType!
+        // So we have to initialize it properly
+        var properties
+        if (model.id[0] === '_') {
+          var typestruct = Y.Map.typeDefinition.struct
+          var id = ['_', typestruct + '_' + 'Map_' + model.id[1]]
+          properties = yield* os.initType.call(this, id)
+
+          model.requires = [properties._model]
+          model.info = {
+            tagname: args.tagname
+          }
+          yield* this.setOperation(model)
+        } else {
+          properties = yield* os.initType.call(this, model.requires[0]) // get the only required op
+        }
+        return new YXml(os, model.id, _content, properties, model.info.tagname, model.info)
+      },
+      createType: function YXmlCreator (os, model, args) {
+        var id = null
+        if (model.id[0] === '_') {
+          var typestruct = Y.Map.typeDefinition.struct
+          id = ['_', typestruct + '_' + 'Map_' + model.id[1]]
+        }
+        var properties = os.createType(Y.Map(), id)
+        model.info = {
+          tagname: args.tagname
+        }
+        model.requires = [properties._model] // XML requires that 'properties' exists
+        return new YXml(os, model.id, [], properties, model.info.tagname, args)
       }
     }))
   })
