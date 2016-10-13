@@ -13,7 +13,16 @@ bower install y-xml --save
 
 ##### NPM
 ```
-npm install y-xml --save
+npm install y-xml y-array y-map --save
+```
+
+This type depends on [y-array](https://github.com/y-js/y-array), and [y-map](https://github.com/y-js/y-map). So you have to extend Yjs in the right order:
+
+```javascript
+var Y = require('yjs')
+require('y-array')(Y)
+require('y-map')(Y)
+require('y-xml')(Y)
 ```
 
 ### Xml Object
