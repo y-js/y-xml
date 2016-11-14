@@ -8,7 +8,7 @@ require('../yjs/gulpfile.helper.js')(gulp, {
   polyfills: [],
   entry: './src/Xml.js',
   targetName: 'y-xml.js',
-  moduleName: 'y-xml',
+  moduleName: 'yXml',
   specs: ['./src/Xml.spec.js']
 })
 

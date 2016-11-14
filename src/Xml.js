@@ -116,7 +116,7 @@ function extend (Y) {
                     // check if it already exists (since this method is called asynchronously)
                     continue
                   }
-                  if (n instanceof window.Text && n.textContent === '') {
+                  if (n instanceof Text && n.textContent === '') {
                     // check if textnode and empty content (sometime happens.. )
                     //   TODO - you could also check if the inserted node actually exists in the
                     //          dom (in order to cover more potential cases)
@@ -136,9 +136,9 @@ function extend (Y) {
                     }
                   }
                   var c
-                  if (n instanceof window.Text) {
+                  if (n instanceof Text) {
                     c = n.textContent
-                  } else if (n instanceof window.Element) {
+                  } else if (n instanceof Element) {
                     c = Y.Xml(n)
                   } else {
                     throw new Error('Unsupported XML Element found. Synchronization will no longer work!')
@@ -210,7 +210,7 @@ function extend (Y) {
               } else {
                 for (var i = event.nodes.length - 1; i >= 0; i--) {
                   var n = event.nodes[i]
-                  var textNode = new window.Text(n)
+                  var textNode = new Text(n)
                   this._content[event.index + i].dom = textNode
                   _tryInsertDom(event.index + i)
                 }
@@ -240,9 +240,9 @@ function extend (Y) {
             this.attributes.set(attr.name, attr.value)
           }
           this.insert(0, Array.prototype.map.call(dom.childNodes, (c, i) => {
-            if (c instanceof window.Element) {
+            if (c instanceof Element) {
               return Y.Xml(c)
-            } else if (c instanceof window.Text) {
+            } else if (c instanceof Text) {
               return c.textContent
             } else {
               throw new Error('Unknown node type!')
@@ -266,7 +266,7 @@ function extend (Y) {
           for (var i = 0; i < this._content.length; i++) {
             let c = this._content[i]
             if (c.hasOwnProperty('val')) {
-              c.dom = new window.Text(c.val)
+              c.dom = new Text(c.val)
             } else {
               c.dom = this.os.getType(c.type).getDom()
             }
@@ -298,7 +298,7 @@ function extend (Y) {
           return [this, {
             tagname: arg
           }]
-        } else if (arg instanceof window.Element) {
+        } else if (arg instanceof Element) {
           return [this, {
             tagname: arg.tagName,
             dom: arg
