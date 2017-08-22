@@ -2,27 +2,28 @@
   "name": "y-xml",
   "version": "10.0.0",
   "description": "Xml Type for Yjs",
-  "main": "./src/Xml.js",
+  "main": "./y-xml.node.js",
+  "browser": "./y-xml.js",
+  "module": "./src/y-xml.js",
   "scripts": {
-    "test": "node --harmony ./node_modules/.bin/gulp test",
-    "lint": "./node_modules/.bin/standard"
+    "dist": "rollup -c rollup.browser.js && rollup -c rollup.node.js",
+    "lint": "standard",
+    "watch": "concurrently 'rollup -wc rollup.browser.js' 'rollup -wc rollup.node.js'",
+    "postversion": "npm run dist",
+    "postpublish": "tag-dist-files --overwrite-existing-tag"
   },
-  "pre-commit": [
-    "lint",
-    "test"
+  "files": [
+    "y-xml.*"
   ],
   "standard": {
-    "parser": "babel-eslint",
     "ignore": [
-      "build/**",
-      "dist/**",
-      "./y.js",
-      "./y.js.map"
+      "/y-array.js",
+      "/y-array.test.js"
     ]
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/y-js/y-array"
+    "url": "https://github.com/y-js/y-xml"
   },
   "keywords": [
     "Yjs",
@@ -40,27 +41,20 @@
   },
   "homepage": "http://y-js.org",
   "devDependencies": {
-    "babel-eslint": "^4.1.8",
-    "babel-plugin-transform-runtime": "^6.1.18",
-    "babel-preset-es2015": "^6.1.18",
-    "babelify": "^7.3.0",
-    "brfs": "^1.4.3",
-    "gulp": "^3.9.0",
-    "gulp-load-plugins": "^1.1.0",
-    "gulp-prompt": "^0.1.2",
-    "jasmine-core": "^2.4.1",
-    "karma": "^1.2.0",
-    "karma-browserify": "^5.1.0",
-    "karma-chrome-launcher": "^2.0.0",
-    "karma-jasmine-html-reporter": "^0.2.2",
-    "pre-commit": "^1.1.2",
-    "run-sequence": "^1.1.4",
-    "standard": "^5.3.1",
-    "watchify": "^3.7.0"
+    "babel-plugin-external-helpers": "^6.22.0",
+    "babel-preset-latest": "^6.24.1",
+    "concurrently": "^3.5.0",
+    "rollup-plugin-babel": "^2.7.1",
+    "rollup-plugin-commonjs": "^8.0.2",
+    "rollup-plugin-node-resolve": "^3.0.0",
+    "rollup-plugin-uglify": "^1.0.2",
+    "rollup-watch": "^3.2.2",
+    "standard": "^10.0.2",
+    "tag-dist-files": "^0.1.6"
   },
   "peerDependencies": {
-    "y-array": "^10.0.0",
-    "y-map": "^10.0.0",
-    "yjs": "^12.0.0"
+    "y-array": "^11.0.0-0",
+    "y-map": "^11.0.0-0",
+    "yjs": "^13.0.0-0"
   }
 }
