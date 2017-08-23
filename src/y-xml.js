@@ -1,8 +1,21 @@
-/* global Y, MutationObserver, Element, Text */
+/* global Y, MutationObserver */
 
 // import diff from 'fast-diff'
+import yXmlText from './y-xml-text.js'
 
 export default function extendXml (Y) {
+  yXmlText(Y)
+
+  function domToType (dom) {
+    if (dom.nodeType === document.TEXT_NODE) {
+      return Y.XmlText(dom)
+    } else if (dom.nodeType === document.ELEMENT_NODE) {
+      return Y.Xml(dom)
+    } else {
+      throw new Error('Unsupported node!')
+    }
+  }
+
   function yarrayEventHandler (op) {
     if (op.struct === 'Insert') {
       // when using indexeddb db adapter, the op could already exist (see y-js/y-indexeddb#2)
@@ -214,15 +227,24 @@ export default function extendXml (Y) {
       return this._content.length
     }
 
-    _destroy () {
+    _unbindFromDom () {
       if (this._domObserver != null) {
         this._domObserver.disconnect()
+        this._domObserver = null
       }
-      this._domObserver = null
-      this._eventListenerHandler.destroy()
-      this._eventListenerHandler = null
+      if (this.dom != null) {
+        this.dom.__yxml = null
+        this.dom = null
+      }
+    }
+
+    _destroy () {
+      this._unbindFromDom()
+      if (this._eventListenerHandler != null) {
+        this._eventListenerHandler.destroy()
+        this._eventListenerHandler = null
+      }
       this.nodeName = null
-      this._dom = null
       // y-array destroy
       this._content = null
       // y-map destroy
@@ -231,23 +253,26 @@ export default function extendXml (Y) {
       this.map = null
     }
 
+    insertDomElements (pos, doms) {
+      doms.forEach(d => {
+        if (d.__yxml != null) {
+          d.__yxml._unbindFromDom()
+        }
+      })
+      let types = doms.map(domToType)
+      this.insert(pos, types)
+    }
+
     insert (pos, types) {
-      var _types = []
       if (!Array.isArray(types)) {
         throw new Error('Expected an Array of content!')
       }
       for (var i = 0; i < types.length; i++) {
         var v = types[i]
         var t = Y.utils.isTypeDefinition(v)
-        if (!(v != null && (
-                     typeof v === 'string' ||
-                     (t && t[0].class === YXml)
-           ))) {
+        if (t == null || (t[0].name !== 'Xml' && t[0].name !== 'XmlText')) {
           throw new Error('Expected Y.Xml type or String!')
-        } else if (typeof v === 'string' && v.length === 0) {
-          continue // if empty string
         }
-        _types.push(v)
       }
       Y.Array.typeDefinition.class.prototype.insert.call(this, pos, types)
     }
@@ -294,7 +319,7 @@ export default function extendXml (Y) {
         // take and process current records
         var records = this._domObserver.takeRecords()
         if (records.length > 0) {
-          this._domObserverListener(records)
+          throw new Error('These changes should have been collected before!')
         }
         if (token) {
           token = false
@@ -313,84 +338,86 @@ export default function extendXml (Y) {
       this._mutualExclude = mutualExclude
       this._domObserverListener = mutations => {
         mutualExclude(() => {
+          let diffChildren = false
           mutations.forEach(mutation => {
             if (mutation.type === 'attributes') {
               var name = mutation.attributeName
               var val = mutation.target.getAttribute(mutation.attributeName)
               if (this.getAttribute(name) !== val) {
-                this.setAttribute(name, val)
+                if (val == null) {
+                  this.removeAttribute(name)
+                } else {
+                  this.setAttribute(name, val)
+                }
               }
             } else if (mutation.type === 'childList') {
-              for (let i = 0; i < mutation.addedNodes.length; i++) {
-                let n = mutation.addedNodes[i]
-                if (this._content.some(function (c) { return c.dom === n })) {
-                  // check if it already exists (since this method is called asynchronously)
-                  continue
-                }
-                if (n instanceof Text && n.textContent === '') {
-                  // check if textnode and empty content (sometime happens.. )
-                  //   TODO - you could also check if the inserted node actually exists in the
-                  //          dom (in order to cover more potential cases)
-                  n.remove()
-                  continue
-                }
-                // compute position
-                // special case, n.nextSibling is not yet inserted. So we find the next inserted element!
-                var pos = -1
-                var nextSibling = n.nextSibling
-                while (pos < 0) {
-                  if (nextSibling == null) {
-                    pos = this._content.length
-                  } else {
-                    pos = this._content.findIndex(function (c) { return c.dom === nextSibling })
-                    nextSibling = nextSibling.nextSibling
-                  }
-                }
-                var c
-                if (n instanceof Text) {
-                  c = n.textContent
-                } else if (n instanceof Element) {
-                  c = Y.Xml(n)
-                } else {
-                  throw new Error('Unsupported XML Element found. Synchronization will no longer work!')
-                }
-                this.insert(pos, [c])
-                var content = this._content[pos]
-                content.dom = n
-              }
-              Array.prototype.forEach.call(mutation.removedNodes, n => {
-                var pos = this._content.findIndex(function (c) {
-                  return c.dom === n
-                })
-                if (pos >= 0) {
-                  this.delete(pos)
-                } else {
-                  throw new Error('An unexpected condition occured (deleted node does not exist in the model)!')
-                }
-              })
+              diffChildren = true
             }
           })
+          if (diffChildren) {
+            /*
+             * The child list was modified
+             * 1. Check if any of the nodes was deleted
+             * 2. Iterate over the children.
+             *    2.1 If a node exists without __yxml property, insert a new node
+             *    2.2 If _contents.length < dom.childNodes.length, fill the
+             *        rest of _content with childNodes
+             *    2.3 If a node was moved, delete it and
+             *       recreate a new yxml element that is bound to that node.
+             *       You can detect that a node was moved because expectedId
+             *       !== actualId in the list
+             */
+            let undeletedKnownChildren = Array.from(this.dom.childNodes.values())
+                                              .map(child => (child.__yxml || {})._model)
+                                              .filter(id => id !== undefined)
+            // 1. Check if any of the nodes was deleted
+            for (let i = this._content.length - 1; i >= 0; i--) {
+              let c = this._content[i]
+              if (!undeletedKnownChildren.some(undel => Y.utils.compareIds(undel, c.type))) {
+                this.delete(i, 1)
+              }
+            }
+            // 2. iterate
+            let childNodes = this.dom.childNodes
+            let len = childNodes.length
+            for (let i = 0; i < len; i++) {
+              let child = childNodes[i]
+              if (child.__yxml != null) {
+                if (i < this.length) {
+                  let expectedNodeId = this._content[i].type
+                  if (!Y.utils.compareIds(child.__yxml._model, expectedNodeId)) {
+                    // 2.3 Not expected node
+                    let index = this._content.findIndex(c => c.type === child.__yxml._model)
+                    if (index < 0) {
+                      // element is going to be deleted by its previous parent
+                      child.__yxml = null
+                    } else {
+                      this.delete(index, 1)
+                    }
+                    if (child.__yxml != null) {
+                      debugger // (this is unexpccted)
+                    }
+                    this.insertDomElements(i, [child])
+                  }
+                  // if this is the expected node id, just continue
+                } else {
+                  // 2.2 fill _conten with child nodes
+                  this.insertDomElements(i, [child])
+                }
+              } else {
+                // 2.1 A new node was found
+                this.insertDomElements(i, [child])
+              }
+            }
+          }
+          if (this._content.length !== this.dom.childNodes.length) {
+            debugger
+          }
         })
       }
       this._domObserver = new MutationObserver(this._domObserverListener)
       this._domObserver.observe(dom, { attributes: true, childList: true })
-      // In order to insert a new node, successor needs to be inserted
-      // when c.dom can be inserted, try to insert the predecessors too
-      var _tryInsertDom = (pos) => {
-        var c = this._content[pos]
-        var succ
-        if (pos + 1 < this._content.length) {
-          succ = this._content[pos + 1]
-          if (succ.dom == null) throw new Error('Unexpected behavior') // shouldn't happen anymore!
-        } else {
-          // pseudo successor
-          succ = {
-            dom: null
-          }
-        }
-        dom.insertBefore(c.dom, succ.dom)
-      }
-      this._tryInsertDom = _tryInsertDom
+      // Apply Y.Xml events to dom
       this.observe(event => {
         mutualExclude(() => {
           if (event.type === 'attributeChanged') {
@@ -398,71 +425,50 @@ export default function extendXml (Y) {
           } else if (event.type === 'attributeRemoved') {
             dom.removeAttribute(event.name)
           } else if (event.type === 'childInserted') {
-            if (event.nodes.length === 1 && event.nodes[0] instanceof YXml) {
-              // a new xml node was inserted.
-              // TODO: consider the case that nodes contains mixed text & types (currently not implemented in yjs)
-              var valId = this._content[event.index].id
-              if (event.nodes.length > 1) { throw new Error('This case is not handled, you\'ll run into consistency issues. Contact the developer') }
-              var newNode = event.nodes[0].getDom()
-              // This is called async. So we have to compute the position again
-              // also mutual excluse this
-              var pos
-              if (event.index < this._content.length && Y.utils.compareIds(this._content[event.index].id, valId)) {
-                pos = event.index
-              } else {
-                pos = this._content.findIndex(function (c) {
-                  return Y.utils.compareIds(c.id, valId)
-                })
+            let nodes = event.nodes
+            for (let i = nodes.length - 1; i >= 0; i--) {
+              let node = nodes[i]
+              let dom = node.getDom()
+              let nextDom = null
+              if (this._content.length > event.index + i + 1) {
+                nextDom = this.get(event.index + i + 1).getDom()
               }
-              if (pos >= 0) {
-                this._content[pos].dom = newNode
-                _tryInsertDom(pos)
-              }
-            } else {
-              for (var i = event.nodes.length - 1; i >= 0; i--) {
-                var n = event.nodes[i]
-                var textNode = new Text(n)
-                this._content[event.index + i].dom = textNode
-                _tryInsertDom(event.index + i)
-              }
+              this.dom.insertBefore(dom, nextDom)
             }
           } else if (event.type === 'childRemoved') {
-            event._content.forEach(function (c) {
-              if (c.dom != null) {
-                c.dom.remove()
-              }
+            event.values.forEach(function (yxml) {
+              yxml.dom.remove()
             })
+          }
+          if (this._content.length !== this.dom.childNodes.length) {
+            debugger // this shouldn't happen!
           }
         })
       })
       return dom
     }
+
     _setDom (dom) {
       if (this.dom != null) {
         throw new Error('Only call this method if you know what you are doing ;)')
       } else if (dom.__yxml != null) { // TODO do i need to check this? - no.. but for dev purps..
         throw new Error('Already bound to an YXml type')
       } else {
-        dom.__yxml = this._model
+        dom.__yxml = this
         // tag is already set in constructor
         // set attributes
         for (var i = 0; i < dom.attributes.length; i++) {
           var attr = dom.attributes[i]
           this.setAttribute(attr.name, attr.value)
         }
-        this.insert(0, Array.prototype.map.call(dom.childNodes, (c, i) => {
-          if (c instanceof Element) {
-            return Y.Xml(c)
-          } else if (c instanceof Text) {
-            return c.textContent
-          } else {
-            throw new Error('Unknown node type!')
+        this.insert(0, Array.from(dom.childNodes.values()).map(dom => {
+          if (dom.__yxml != null) {
+            // it is ok to reset here. It was probably moved from another node, and will be removed by that node
+            dom.__yxml._domObserver.disconnect()
+            dom.__yxml = null
           }
+          return domToType(dom)
         }))
-        Array.prototype.forEach.call(dom.childNodes, (dom, i) => {
-          var c = this._content[i]
-          c.dom = dom
-        })
         this.dom = this._bindToDom(dom)
         return this.dom
       }
@@ -478,12 +484,8 @@ export default function extendXml (Y) {
         }
         for (var i = 0; i < this._content.length; i++) {
           let c = this._content[i]
-          if (c.hasOwnProperty('val')) {
-            c.dom = new Text(c.val)
-          } else {
-            c.dom = this.os.getType(c.type).getDom()
-          }
-          dom.appendChild(c.dom)
+          let type = this.os.getType(c.type)
+          dom.appendChild(type.getDom())
         }
         this.dom = this._bindToDom(dom)
       }
@@ -597,7 +599,7 @@ export default function extendXml (Y) {
           contents[name] = op.content[0]
         }
       }
-      return new YXml(os, model, _content, contents, opContents, init != null ? init.dom: null)
+      return new YXml(os, model, _content, contents, opContents, init != null ? init.dom : null)
     },
     createType: function YXmlCreator (os, model, args) {
       return new YXml(os, model, [], {}, {}, args.dom)
