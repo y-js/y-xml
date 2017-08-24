@@ -1,4 +1,4 @@
-/* global MutationObserver */
+/* global MutationObserver, getSelection */
 
 import diff from 'fast-diff'
 
@@ -35,9 +35,47 @@ export default function extendYXmlText (Y) {
             token = true
           }
         }
+        function fixPosition (event, pos) {
+          if (event.index <= pos) {
+            if (event.type === 'delete') {
+              return pos - Math.min(pos - event.index, event.length)
+            } else {
+              return pos + 1
+            }
+          } else {
+            return pos
+          }
+        }
         this.observe(event => {
           mutualExcluse(() => {
+            let selection = null
+            let shouldUpdateSelection = false
+            let anchorNode = null
+            let anchorOffset = null
+            let focusNode = null
+            let focusOffset = null
+            if (typeof getSelection !== 'undefined') {
+              selection = getSelection()
+              if (selection.anchorNode === this.dom) {
+                anchorNode = selection.anchorNode
+                anchorOffset = fixPosition(event, selection.anchorOffset)
+                shouldUpdateSelection = true
+              }
+              if (selection.focusNode === this.dom) {
+                focusNode = selection.focusNode
+                focusOffset = fixPosition(event, selection.focusOffset)
+                shouldUpdateSelection = true
+              }
+            }
             this.dom.nodeValue = this.toString()
+            if (shouldUpdateSelection) {
+              selection.setBaseAndExtent(
+                anchorNode || selection.anchorNode,
+                anchorOffset || selection.anchorOffset,
+                focusNode || selection.focusNode,
+                focusOffset || selection.focusOffset
+              )
+            }
           })
         })
         this.dom = dom
