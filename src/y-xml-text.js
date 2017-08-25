@@ -1,8 +1,8 @@
-/* global MutationObserver, getSelection */
+/* global getSelection */
 
 import diff from 'fast-diff'
 
-export default function extendYXmlText (Y) {
+export default function extendYXmlText (Y, _document, _MutationObserver) {
   Y.requestModules(['Array']).then(function () {
     class YXmlText extends Y.Array.typeDefinition['class'] {
       constructor (os, _model, _content, args) {
@@ -97,13 +97,13 @@ export default function extendYXmlText (Y) {
             }
           })
         }
-        this._domObserver = new MutationObserver(this._domObserverListener)
+        this._domObserver = new _MutationObserver(this._domObserverListener)
         this._domObserver.observe(this.dom, { characterData: true })
       }
 
       getDom () {
         if (this.dom == null) {
-          let dom = document.createTextNode(this.toString())
+          let dom = _document.createTextNode(this.toString())
           this._setDom(dom)
         }
         return this.dom
@@ -152,7 +152,7 @@ export default function extendYXmlText (Y) {
       parseArguments: function (arg) {
         if (typeof arg === 'string') {
           return [this, { content: arg }]
-        } else if (arg.nodeType === document.TEXT_NODE) {
+        } else if (arg.nodeType === _document.TEXT_NODE) {
           return [this, { content: arg.nodeValue, dom: arg }]
         } else {
           return [this, {}]

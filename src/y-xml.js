@@ -3,13 +3,22 @@
 // import diff from 'fast-diff'
 import yXmlText from './y-xml-text.js'
 
-export default function extendXml (Y) {
-  yXmlText(Y)
+export default function extendXml (Y, _document, _MutationObserver) {
+  if (_document == null && typeof document !== 'undefined') {
+    _document = document
+  }
+  if (typeof MutationObserver !== 'undefined') {
+    _MutationObserver = MutationObserver
+  } else {
+    console.warn('MutationObserver is not available. y-xml won\'t listen to changes on the DOM')
+    _MutationObserver = function () { return { observe: () => {}, disconnect: () => {} } }
+  }
+  yXmlText(Y, _document, _MutationObserver)
 
   function domToType (dom) {
-    if (dom.nodeType === document.TEXT_NODE) {
+    if (dom.nodeType === _document.TEXT_NODE) {
       return Y.XmlText(dom)
-    } else if (dom.nodeType === document.ELEMENT_NODE) {
+    } else if (dom.nodeType === _document.ELEMENT_NODE) {
       return Y.Xml(dom)
     } else {
       throw new Error('Unsupported node!')
@@ -415,7 +424,7 @@ export default function extendXml (Y) {
           }
         })
       }
-      this._domObserver = new MutationObserver(this._domObserverListener)
+      this._domObserver = new _MutationObserver(this._domObserverListener)
       this._domObserver.observe(dom, { attributes: true, childList: true })
       // Apply Y.Xml events to dom
       this.observe(event => {
@@ -476,7 +485,7 @@ export default function extendXml (Y) {
 
     getDom () {
       if (this.dom == null) {
-        var dom = document.createElement(this.nodeName)
+        var dom = _document.createElement(this.nodeName)
         dom.__yxml = this
         let attrs = this.getAttributes()
         for (let key in attrs) {
