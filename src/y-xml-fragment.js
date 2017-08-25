@@ -11,7 +11,7 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
       }
 
       insertDomElements () {
-        return Y.Xml.typeDefinition.class.prototype.insertDomElements.apply(this, arguments)
+        return Y.XmlElement.typeDefinition.class.prototype.insertDomElements.apply(this, arguments)
       }
 
       bindToDom (dom) {
