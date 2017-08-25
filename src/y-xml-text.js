@@ -22,6 +22,9 @@ export default function extendYXmlText (Y, _document, _MutationObserver) {
         if (this.dom != null || dom.__yxml != null) {
           throw new Error('Already bound to a yxml type!')
         }
+        if (_MutationObserver == null) {
+          return
+        }
         var token = true
         function mutualExcluse (f) {
           if (token) {

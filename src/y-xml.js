@@ -2,6 +2,8 @@
 
 // import diff from 'fast-diff'
 import yXmlText from './y-xml-text.js'
+import yXmlFragment from './y-xml-fragment.js'
+import { applyChangesFromDom } from './utils.js'
 
 export default function extendXml (Y, _document, _MutationObserver) {
   if (_document == null && typeof document !== 'undefined') {
@@ -14,6 +16,7 @@ export default function extendXml (Y, _document, _MutationObserver) {
     _MutationObserver = null
   }
   yXmlText(Y, _document, _MutationObserver)
+  yXmlFragment(Y, _document, _MutationObserver)
 
   function domToType (dom) {
     if (dom.nodeType === _document.TEXT_NODE) {
@@ -236,6 +239,14 @@ export default function extendXml (Y, _document, _MutationObserver) {
       return this._content.length
     }
 
+    toString () {
+      let nodeName = this.nodeName.toLowerCase()
+      let children = this._content
+        .map(c => this.os.getType(c.type).toString())
+        .join('')
+      return `<${nodeName}>${children}</${nodeName}>`
+    }
+
     _unbindFromDom () {
       if (this._domObserver != null) {
         this._domObserver.disconnect()
@@ -364,60 +375,7 @@ export default function extendXml (Y, _document, _MutationObserver) {
             }
           })
           if (diffChildren) {
-            /*
-             * The child list was modified
-             * 1. Check if any of the nodes was deleted
-             * 2. Iterate over the children.
-             *    2.1 If a node exists without __yxml property, insert a new node
-             *    2.2 If _contents.length < dom.childNodes.length, fill the
-             *        rest of _content with childNodes
-             *    2.3 If a node was moved, delete it and
-             *       recreate a new yxml element that is bound to that node.
-             *       You can detect that a node was moved because expectedId
-             *       !== actualId in the list
-             */
-            let undeletedKnownChildren = Array.from(this.dom.childNodes.values())
-                                              .map(child => (child.__yxml || {})._model)
-                                              .filter(id => id !== undefined)
-            // 1. Check if any of the nodes was deleted
-            for (let i = this._content.length - 1; i >= 0; i--) {
-              let c = this._content[i]
-              if (!undeletedKnownChildren.some(undel => Y.utils.compareIds(undel, c.type))) {
-                this.delete(i, 1)
-              }
-            }
-            // 2. iterate
-            let childNodes = this.dom.childNodes
-            let len = childNodes.length
-            for (let i = 0; i < len; i++) {
-              let child = childNodes[i]
-              if (child.__yxml != null) {
-                if (i < this.length) {
-                  let expectedNodeId = this._content[i].type
-                  if (!Y.utils.compareIds(child.__yxml._model, expectedNodeId)) {
-                    // 2.3 Not expected node
-                    let index = this._content.findIndex(c => c.type === child.__yxml._model)
-                    if (index < 0) {
-                      // element is going to be deleted by its previous parent
-                      child.__yxml = null
-                    } else {
-                      this.delete(index, 1)
-                    }
-                    if (child.__yxml != null) {
-                      debugger // (this is unexpccted)
-                    }
-                    this.insertDomElements(i, [child])
-                  }
-                  // if this is the expected node id, just continue
-                } else {
-                  // 2.2 fill _conten with child nodes
-                  this.insertDomElements(i, [child])
-                }
-              } else {
-                // 2.1 A new node was found
-                this.insertDomElements(i, [child])
-              }
-            }
+            applyChangesFromDom(this)
           }
           if (this._content.length !== this.dom.childNodes.length) {
             debugger
@@ -486,8 +444,9 @@ export default function extendXml (Y, _document, _MutationObserver) {
     }
 
     getDom () {
-      if (this.dom == null) {
-        var dom = _document.createElement(this.nodeName)
+      let dom = this.dom
+      if (dom == null) {
+        dom = _document.createElement(this.nodeName)
         dom.__yxml = this
         let attrs = this.getAttributes()
         for (let key in attrs) {
@@ -502,7 +461,7 @@ export default function extendXml (Y, _document, _MutationObserver) {
           this.dom = this._bindToDom(dom)
         }
       }
-      return this.dom
+      return dom
     }
 
     observe (f) {
