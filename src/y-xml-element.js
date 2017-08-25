@@ -194,6 +194,7 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
       this._os = os
       this.os = os
       this._model = model.id
+      this._parent = null
       // map is the map of attributes (y-map convention)
       this.map = Y.utils.copyObject(model.map)
       this.contents = contents
@@ -211,6 +212,7 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
         }
       })
       this.eventHandler = eventHandler
+      this._deepEventHandler = new Y.utils.EventListenerHandler()
       this._eventListenerHandler = eventHandler
       this._domObserver = null
       this._dom = null
@@ -229,6 +231,12 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
         .map(c => this.os.getType(c.type).toString())
         .join('')
       return `<${nodeName}>${children}</${nodeName}>`
+    }
+
+    _getPathToChild (childId) {
+      return this._content.findIndex(c =>
+        c.type != null && Y.utils.compareIds(c.type, childId)
+      )
     }
 
     _unbindFromDom () {
@@ -487,6 +495,12 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
     unobserve (f) {
       this._eventListenerHandler.removeEventListener(f)
     }
+    observeDeep (f) {
+      this._deepEventHandler.addEventListener(f)
+    }
+    unobserveDeep (f) {
+      this._deepEventHandler.removeEventListener(f)
+    }
 
     * _changed (transaction, op) {
       if (this._domObserver != null) {
@@ -540,7 +554,8 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
         }
       })
       for (var i = 0; i < _types.length; i++) {
-        yield * os.initType.call(this, _types[i], init)
+        let type = yield * this.store.initType.call(this, _types[i], init)
+        type._parent = model.id
       }
       // here begins the modified y-map init
       var contents = {}
