@@ -566,7 +566,7 @@ export default function extendXml (Y, _document, _MutationObserver) {
           nodeName: arg.toUpperCase(),
           dom: null
         }]
-      } else if (arg.nodeType instanceof _document.ELEMENT_NODE) {
+      } else if (arg.nodeType === _document.ELEMENT_NODE) {
         return [this, {
           nodeName: arg.nodeName,
           dom: arg
