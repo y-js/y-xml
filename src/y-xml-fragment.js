@@ -10,6 +10,10 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
         this._domObserverListener = null
       }
 
+      insertDomElements () {
+        return Y.Xml.typeDefinition.class.prototype.insertDomElements.apply(this, arguments)
+      }
+
       bindToDom (dom) {
         if (this.dom != null || dom.__yxml != null) {
           throw new Error('Already bound to a dom element!')
@@ -18,25 +22,36 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
           throw new Error('Not able to bind to a DOM element, because MutationObserver is not available!')
         }
         var token = true
-        function mutualExcluse (f) {
+        var mutualExcluse = f => {
+          // take and process current records
+          var records = this._domObserver.takeRecords()
+          if (records.length > 0) {
+            throw new Error('These changes should have been collected before!')
+          }
           if (token) {
             token = false
             try {
               f()
             } catch (e) {
+              // discard created records
+              this._domObserver.takeRecords()
               token = true
-              throw new Error(e)
+              throw e
             }
+            this._domObserver.takeRecords()
             token = true
           }
+        }
+        dom.innerHTML = ''
+        for (let i = 0; i < this._content.length; i++) {
+          dom.insertBefore(this.get(i).getDom(), null)
         }
         this.observe(event => {
           mutualExcluse(() => {
             if (event.type === 'insert') {
-              let nodes = event.nodes
+              let nodes = event.values.map(v => v.getDom())
               for (let i = nodes.length - 1; i >= 0; i--) {
-                let node = nodes[i]
-                let dom = node.getDom()
+                let dom = nodes[i]
                 let nextDom = null
                 if (this._content.length > event.index + i + 1) {
                   nextDom = this.get(event.index + i + 1).getDom()
@@ -53,10 +68,10 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
         this.dom = dom
         dom.__yxml = this
         this._domObserverListener = () => {
-          mutualExcluse(applyChangesFromDom.bind(this))
+          mutualExcluse(() => applyChangesFromDom(this))
         }
         this._domObserver = new _MutationObserver(this._domObserverListener)
-        this._domObserver.observe(this.dom, { attributes: true, childList: true })
+        this._domObserver.observe(this.dom, { childList: true })
       }
 
       toString () {
@@ -97,9 +112,14 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
       struct: 'List',
       initType: function * YXmlFragmentInitializer (os, model) {
         var _content = []
+        var _types = []
         yield * Y.Struct.List.map.call(this, model, function (op) {
           if (op.hasOwnProperty('opContent')) {
-            throw new Error('Text must not contain types!')
+            _content.push({
+              id: op.id,
+              type: op.opContent
+            })
+            _types.push(op.opContent)
           } else {
             op.content.forEach(function (c, i) {
               _content.push({
@@ -109,7 +129,11 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
             })
           }
         })
-        return new YXmlFragment(os, model.id, _content, {})
+        for (var i = 0; i < _types.length; i++) {
+          var type = yield * this.store.initType.call(this, _types[i])
+          type._parent = model.id
+        }
+        return new YXmlFragment(os, model.id, _content)
       },
       createType: function YXmlTextCreator (os, model) {
         return new YXmlFragment(os, model.id, [])
