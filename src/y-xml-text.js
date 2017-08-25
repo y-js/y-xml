@@ -104,9 +104,13 @@ export default function extendYXmlText (Y, _document, _MutationObserver) {
       getDom () {
         if (this.dom == null) {
           let dom = _document.createTextNode(this.toString())
-          this._setDom(dom)
+          if (_MutationObserver !== null) {
+            this._setDom(dom)
+          }
+          return dom
+        } else {
+          return this.dom
         }
-        return this.dom
       }
 
       toString () {

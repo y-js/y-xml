@@ -11,7 +11,7 @@ export default function extendXml (Y, _document, _MutationObserver) {
     _MutationObserver = MutationObserver
   } else {
     console.warn('MutationObserver is not available. y-xml won\'t listen to changes on the DOM')
-    _MutationObserver = function () { return { observe: () => {}, disconnect: () => {} } }
+    _MutationObserver = null
   }
   yXmlText(Y, _document, _MutationObserver)
 
@@ -478,8 +478,10 @@ export default function extendXml (Y, _document, _MutationObserver) {
           }
           return domToType(dom)
         }))
-        this.dom = this._bindToDom(dom)
-        return this.dom
+        if (_MutationObserver != null) {
+          this.dom = this._bindToDom(dom)
+        }
+        return dom
       }
     }
 
@@ -496,7 +498,9 @@ export default function extendXml (Y, _document, _MutationObserver) {
           let type = this.os.getType(c.type)
           dom.appendChild(type.getDom())
         }
-        this.dom = this._bindToDom(dom)
+        if (_MutationObserver !== null) {
+          this.dom = this._bindToDom(dom)
+        }
       }
       return this.dom
     }
@@ -562,7 +566,7 @@ export default function extendXml (Y, _document, _MutationObserver) {
           nodeName: arg.toUpperCase(),
           dom: null
         }]
-      } else if (arg instanceof Element) {
+      } else if (arg.nodeType instanceof _document.ELEMENT_NODE) {
         return [this, {
           nodeName: arg.nodeName,
           dom: arg
