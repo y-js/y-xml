@@ -11,8 +11,7 @@
  *       !== actualId in the list
  */
 export function applyChangesFromDom (yxml) {
-  let undeletedKnownChildren = Array.from(yxml.dom.childNodes.values())
-                                    .map(child => child.__yxml)
+  let undeletedKnownChildren = Array.prototype.map.call(yxml.dom.childNodes, child => child.__yxml)
                                     .filter(id => id !== undefined)
   // 1. Check if any of the nodes was deleted
   for (let i = yxml._content.length - 1; i >= 0; i--) {

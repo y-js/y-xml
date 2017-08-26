@@ -420,7 +420,7 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
           var attr = dom.attributes[i]
           this.setAttribute(attr.name, attr.value)
         }
-        this.insert(0, Array.from(dom.childNodes.values()).map(dom => {
+        this.insert(0, Array.prototype.map.call(dom.childNodes, dom => {
           if (dom.__yxml != null) {
             // it is ok to reset here. It was probably moved from another node, and will be removed by that node
             dom.__yxml._domObserver.disconnect()
