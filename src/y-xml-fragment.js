@@ -15,8 +15,11 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
       }
 
       bindToDom (dom) {
-        if (this.dom != null || dom.__yxml != null) {
-          throw new Error('Already bound to a dom element!')
+        if (this.dom != null) {
+          this._unbindFromDom()
+        }
+        if (dom.__yxml != null) {
+          dom.__yxml._unbindFromDom()
         }
         if (_MutationObserver == null) {
           throw new Error('Not able to bind to a DOM element, because MutationObserver is not available!')

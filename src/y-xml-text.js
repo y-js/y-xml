@@ -19,8 +19,11 @@ export default function extendYXmlText (Y, _document, _MutationObserver) {
       }
 
       _setDom (dom) {
-        if (this.dom != null || dom.__yxml != null) {
-          throw new Error('Already bound to a yxml type!')
+        if (this.dom != null) {
+          this._unbindFromDom()
+        }
+        if (dom.__yxml != null) {
+          dom.__yxml._unbindFromDom()
         }
         if (_MutationObserver == null) {
           return

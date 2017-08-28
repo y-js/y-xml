@@ -230,7 +230,11 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
       let children = this._content
         .map(c => this.os.getType(c.type).toString())
         .join('')
-      return `<${nodeName}>${children}</${nodeName}>`
+      if (children.length === 0) {
+        return `<${nodeName}/>`
+      } else {
+        return `<${nodeName}>${children}</${nodeName}>`
+      }
     }
 
     _getPathToChild (childId) {
