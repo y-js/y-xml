@@ -137,11 +137,11 @@ export default function extendYXmlText (Y, _document, _MutationObserver) {
         super.insert(pos, content.split(''))
       }
 
-      * _changed (transaction, op) {
+      _changed (transaction, op) {
         if (this._domObserver != null) {
           this._domObserverListener(this._domObserver.takeRecords())
         }
-        yield * super._changed(transaction, op)
+        super._changed(transaction, op)
       }
 
       _unbindFromDom () {
@@ -176,9 +176,9 @@ export default function extendYXmlText (Y, _document, _MutationObserver) {
           return [this, {}]
         }
       },
-      initType: function * YXmlTextInitializer (os, model, init) {
+      initType: function YXmlTextInitializer (os, model, init) {
         var _content = []
-        yield * Y.Struct.List.map.call(this, model, function (op) {
+        Y.Struct.List.map.call(this, model, function (op) {
           if (op.hasOwnProperty('opContent')) {
             throw new Error('Text must not contain types!')
           } else {

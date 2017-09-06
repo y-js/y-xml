@@ -74,6 +74,7 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
           mutualExcluse(() => applyChangesFromDom(this))
         }
         this._domObserver = new _MutationObserver(this._domObserverListener)
+        this._domObserver.takeRecords() // discard made changes
         this._domObserver.observe(this.dom, { childList: true })
       }
 
@@ -83,11 +84,11 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
           .join('')
       }
 
-      * _changed (transaction, op) {
+      _changed (transaction, op) {
         if (this._domObserver != null) {
           this._domObserverListener(this._domObserver.takeRecords())
         }
-        yield * super._changed(transaction, op)
+        super._changed(transaction, op)
       }
 
       _unbindFromDom () {
@@ -113,10 +114,10 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
       name: 'XmlFragment',
       class: YXmlFragment,
       struct: 'List',
-      initType: function * YXmlFragmentInitializer (os, model) {
+      initType: function YXmlFragmentInitializer (os, model) {
         var _content = []
         var _types = []
-        yield * Y.Struct.List.map.call(this, model, function (op) {
+        Y.Struct.List.map.call(this, model, function (op) {
           if (op.hasOwnProperty('opContent')) {
             _content.push({
               id: op.id,
@@ -133,7 +134,7 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
           }
         })
         for (var i = 0; i < _types.length; i++) {
-          var type = yield * this.store.initType.call(this, _types[i])
+          var type = this.store.initType.call(this, _types[i])
           type._parent = model.id
         }
         return new YXmlFragment(os, model.id, _content)

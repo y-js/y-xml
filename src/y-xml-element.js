@@ -506,14 +506,14 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
       this._deepEventHandler.removeEventListener(f)
     }
 
-    * _changed (transaction, op) {
+    _changed (transaction, op) {
       if (this._domObserver != null) {
         this._domObserverListener(this._domObserver.takeRecords())
       }
       if (op.parentSub !== undefined || op.targetParent !== undefined) {
-        yield * Y.Map.typeDefinition['class'].prototype._changed.apply(this, arguments)
+        Y.Map.typeDefinition['class'].prototype._changed.apply(this, arguments)
       } else {
-        yield * Y.Array.typeDefinition['class'].prototype._changed.apply(this, arguments)
+        Y.Array.typeDefinition['class'].prototype._changed.apply(this, arguments)
       }
     }
   }
@@ -537,11 +537,11 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
         throw new Error('Y.Xml requires an argument which is a string!')
       }
     },
-    initType: function * YXmlElementInitializer (os, model, init) {
+    initType: function YXmlElementInitializer (os, model, init) {
       // here begins the modified y-array init
       var _content = []
       var _types = []
-      yield * Y.Struct.Xml.map.call(this, model, function (op) {
+      Y.Struct.Xml.map.call(this, model, function (op) {
         if (op.hasOwnProperty('opContent')) {
           _content.push({
             id: op.id,
@@ -558,7 +558,7 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
         }
       })
       for (var i = 0; i < _types.length; i++) {
-        let type = yield * this.store.initType.call(this, _types[i], init)
+        let type = this.store.initType.call(this, _types[i], init)
         type._parent = model.id
       }
       // here begins the modified y-map init
@@ -566,11 +566,11 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
       var opContents = {}
       var map = model.map
       for (var name in map) {
-        var op = yield * this.getOperation(map[name])
+        var op = this.getOperation(map[name])
         if (op.deleted) continue
         if (op.opContent != null) {
           opContents[name] = op.opContent
-          yield * this.store.initType.call(this, op.opContent)
+          this.store.initType.call(this, op.opContent)
         } else {
           contents[name] = op.content[0]
         }
