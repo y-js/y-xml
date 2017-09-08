@@ -2,6 +2,18 @@
 
 import diff from 'fast-diff'
 
+function fixPosition (event, pos) {
+  if (event.index <= pos) {
+    if (event.type === 'delete') {
+      return pos - Math.min(pos - event.index, event.length)
+    } else {
+      return pos + 1
+    }
+  } else {
+    return pos
+  }
+}
+
 export default function extendYXmlText (Y, _document, _MutationObserver) {
   Y.requestModules(['Array']).then(function () {
     class YXmlText extends Y.Array.typeDefinition['class'] {
@@ -16,20 +28,8 @@ export default function extendYXmlText (Y, _document, _MutationObserver) {
         if (args != null && args.dom != null) {
           this._setDom(args.dom)
         }
-      }
-
-      _setDom (dom) {
-        if (this.dom != null) {
-          this._unbindFromDom()
-        }
-        if (dom.__yxml != null) {
-          dom.__yxml._unbindFromDom()
-        }
-        if (_MutationObserver == null) {
-          return
-        }
         var token = true
-        var mutualExcluse = f => {
+        this._mutualExcluse = f => {
           // take and process current records
           var records = this._domObserver.takeRecords()
           if (records.length > 0) {
@@ -49,53 +49,56 @@ export default function extendYXmlText (Y, _document, _MutationObserver) {
             token = true
           }
         }
-        function fixPosition (event, pos) {
-          if (event.index <= pos) {
-            if (event.type === 'delete') {
-              return pos - Math.min(pos - event.index, event.length)
-            } else {
-              return pos + 1
-            }
-          } else {
-            return pos
-          }
-        }
         this.observe(event => {
-          mutualExcluse(() => {
-            let selection = null
-            let shouldUpdateSelection = false
-            let anchorNode = null
-            let anchorOffset = null
-            let focusNode = null
-            let focusOffset = null
-            if (typeof getSelection !== 'undefined') {
-              selection = getSelection()
-              if (selection.anchorNode === this.dom) {
-                anchorNode = selection.anchorNode
-                anchorOffset = fixPosition(event, selection.anchorOffset)
-                shouldUpdateSelection = true
+          if (this.dom != null) {
+            this._mutualExcluse(() => {
+              let selection = null
+              let shouldUpdateSelection = false
+              let anchorNode = null
+              let anchorOffset = null
+              let focusNode = null
+              let focusOffset = null
+              if (typeof getSelection !== 'undefined') {
+                selection = getSelection()
+                if (selection.anchorNode === this.dom) {
+                  anchorNode = selection.anchorNode
+                  anchorOffset = fixPosition(event, selection.anchorOffset)
+                  shouldUpdateSelection = true
+                }
+                if (selection.focusNode === this.dom) {
+                  focusNode = selection.focusNode
+                  focusOffset = fixPosition(event, selection.focusOffset)
+                  shouldUpdateSelection = true
+                }
               }
-              if (selection.focusNode === this.dom) {
-                focusNode = selection.focusNode
-                focusOffset = fixPosition(event, selection.focusOffset)
-                shouldUpdateSelection = true
+              this.dom.nodeValue = this.toString()
+              if (shouldUpdateSelection) {
+                selection.setBaseAndExtent(
+                  anchorNode || selection.anchorNode,
+                  anchorOffset || selection.anchorOffset,
+                  focusNode || selection.focusNode,
+                  focusOffset || selection.focusOffset
+                )
               }
-            }
-            this.dom.nodeValue = this.toString()
-            if (shouldUpdateSelection) {
-              selection.setBaseAndExtent(
-                anchorNode || selection.anchorNode,
-                anchorOffset || selection.anchorOffset,
-                focusNode || selection.focusNode,
-                focusOffset || selection.focusOffset
-              )
-            }
-          })
+            })
+          }
         })
+      }
+
+      _setDom (dom) {
+        if (this.dom != null) {
+          this._unbindFromDom()
+        }
+        if (dom.__yxml != null) {
+          dom.__yxml._unbindFromDom()
+        }
+        if (_MutationObserver == null) {
+          return
+        }
         this.dom = dom
         dom.__yxml = this
         this._domObserverListener = () => {
-          mutualExcluse(() => {
+          this._mutualExcluse(() => {
             var diffs = diff(this.toString(), this.dom.nodeValue)
             var pos = 0
             for (var i = 0; i < diffs.length; i++) {

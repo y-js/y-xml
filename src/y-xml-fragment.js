@@ -8,24 +8,8 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
         this.dom = null
         this._domObserver = null
         this._domObserverListener = null
-      }
-
-      insertDomElements () {
-        return Y.XmlElement.typeDefinition.class.prototype.insertDomElements.apply(this, arguments)
-      }
-
-      bindToDom (dom) {
-        if (this.dom != null) {
-          this._unbindFromDom()
-        }
-        if (dom.__yxml != null) {
-          dom.__yxml._unbindFromDom()
-        }
-        if (_MutationObserver == null) {
-          throw new Error('Not able to bind to a DOM element, because MutationObserver is not available!')
-        }
         var token = true
-        var mutualExcluse = f => {
+        this._mutualExcluse = f => {
           // take and process current records
           var records = this._domObserver.takeRecords()
           if (records.length > 0) {
@@ -45,33 +29,51 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
             token = true
           }
         }
+        this.observe(event => {
+          if (this.dom != null) {
+            this._mutualExcluse(() => {
+              if (event.type === 'insert') {
+                let nodes = event.values.map(v => v.getDom())
+                for (let i = nodes.length - 1; i >= 0; i--) {
+                  let dom = nodes[i]
+                  let nextDom = null
+                  if (this._content.length > event.index + i + 1) {
+                    nextDom = this.get(event.index + i + 1).getDom()
+                  }
+                  this.dom.insertBefore(dom, nextDom)
+                }
+              } else if (event.type === 'delete') {
+                event.values.forEach(function (yxml) {
+                  yxml.dom.remove()
+                })
+              }
+            })
+          }
+        })
+      }
+
+      insertDomElements () {
+        return Y.XmlElement.typeDefinition.class.prototype.insertDomElements.apply(this, arguments)
+      }
+
+      bindToDom (dom) {
+        if (this.dom != null) {
+          this._unbindFromDom()
+        }
+        if (dom.__yxml != null) {
+          dom.__yxml._unbindFromDom()
+        }
+        if (_MutationObserver == null) {
+          throw new Error('Not able to bind to a DOM element, because MutationObserver is not available!')
+        }
         dom.innerHTML = ''
         for (let i = 0; i < this._content.length; i++) {
           dom.insertBefore(this.get(i).getDom(), null)
         }
-        this.observe(event => {
-          mutualExcluse(() => {
-            if (event.type === 'insert') {
-              let nodes = event.values.map(v => v.getDom())
-              for (let i = nodes.length - 1; i >= 0; i--) {
-                let dom = nodes[i]
-                let nextDom = null
-                if (this._content.length > event.index + i + 1) {
-                  nextDom = this.get(event.index + i + 1).getDom()
-                }
-                this.dom.insertBefore(dom, nextDom)
-              }
-            } else if (event.type === 'delete') {
-              event.values.forEach(function (yxml) {
-                yxml.dom.remove()
-              })
-            }
-          })
-        })
         this.dom = dom
         dom.__yxml = this
         this._domObserverListener = () => {
-          mutualExcluse(() => applyChangesFromDom(this))
+          this._mutualExcluse(() => applyChangesFromDom(this))
         }
         this._domObserver = new _MutationObserver(this._domObserverListener)
         this._domObserver.takeRecords() // discard made changes

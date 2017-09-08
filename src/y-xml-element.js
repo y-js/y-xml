@@ -215,10 +215,60 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
       this._deepEventHandler = new Y.utils.EventListenerHandler()
       this._eventListenerHandler = eventHandler
       this._domObserver = null
-      this._dom = null
+      this.dom = null
       if (dom != null) {
         this._setDom(dom)
       }
+      // this function makes sure that either the
+      // dom event is executed, or the yjs observer is executed
+      var token = true
+      this._mutualExclude = f => {
+        // take and process current records
+        var records = this._domObserver.takeRecords()
+        if (records.length > 0) {
+          throw new Error('These changes should have been collected before!')
+        }
+        if (token) {
+          token = false
+          try {
+            f()
+          } catch (e) {
+            // discard created records
+            this._domObserver.takeRecords()
+            token = true
+            throw e
+          }
+          this._domObserver.takeRecords()
+          token = true
+        }
+      }
+      // Apply Y.Xml events to dom
+      this.observe(event => {
+        if (this.dom != null) {
+          this._mutualExclude(() => {
+            if (event.type === 'attributeChanged') {
+              this.dom.setAttribute(event.name, event.value)
+            } else if (event.type === 'attributeRemoved') {
+              this.dom.removeAttribute(event.name)
+            } else if (event.type === 'childInserted') {
+              let nodes = event.nodes
+              for (let i = nodes.length - 1; i >= 0; i--) {
+                let node = nodes[i]
+                let dom = node.getDom()
+                let nextDom = null
+                if (this._content.length > event.index + i + 1) {
+                  nextDom = this.get(event.index + i + 1).getDom()
+                }
+                this.dom.insertBefore(dom, nextDom)
+              }
+            } else if (event.type === 'childRemoved') {
+              event.values.forEach(function (yxml) {
+                yxml.dom.remove()
+              })
+            }
+          })
+        }
+      })
     }
 
     get length () {
@@ -328,32 +378,8 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
     // binds to a dom element
     // Only call if dom and YXml are isomorph
     _bindToDom (dom) {
-      // this function makes sure that either the
-      // dom event is executed, or the yjs observer is executed
-      var token = true
-      var mutualExclude = f => {
-        // take and process current records
-        var records = this._domObserver.takeRecords()
-        if (records.length > 0) {
-          throw new Error('These changes should have been collected before!')
-        }
-        if (token) {
-          token = false
-          try {
-            f()
-          } catch (e) {
-            // discard created records
-            this._domObserver.takeRecords()
-            token = true
-            throw e
-          }
-          this._domObserver.takeRecords()
-          token = true
-        }
-      }
-      this._mutualExclude = mutualExclude
       this._domObserverListener = mutations => {
-        mutualExclude(() => {
+        this._mutualExclude(() => {
           let diffChildren = false
           mutations.forEach(mutation => {
             if (mutation.type === 'attributes') {
@@ -373,41 +399,10 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
           if (diffChildren) {
             applyChangesFromDom(this)
           }
-          if (this._content.length !== this.dom.childNodes.length) {
-            debugger
-          }
         })
       }
       this._domObserver = new _MutationObserver(this._domObserverListener)
       this._domObserver.observe(dom, { attributes: true, childList: true })
-      // Apply Y.Xml events to dom
-      this.observe(event => {
-        mutualExclude(() => {
-          if (event.type === 'attributeChanged') {
-            dom.setAttribute(event.name, event.value)
-          } else if (event.type === 'attributeRemoved') {
-            dom.removeAttribute(event.name)
-          } else if (event.type === 'childInserted') {
-            let nodes = event.nodes
-            for (let i = nodes.length - 1; i >= 0; i--) {
-              let node = nodes[i]
-              let dom = node.getDom()
-              let nextDom = null
-              if (this._content.length > event.index + i + 1) {
-                nextDom = this.get(event.index + i + 1).getDom()
-              }
-              this.dom.insertBefore(dom, nextDom)
-            }
-          } else if (event.type === 'childRemoved') {
-            event.values.forEach(function (yxml) {
-              yxml.dom.remove()
-            })
-          }
-          if (this._content.length !== this.dom.childNodes.length) {
-            debugger // this shouldn't happen!
-          }
-        })
-      })
       return dom
     }
 
