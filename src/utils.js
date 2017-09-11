@@ -30,7 +30,7 @@ export function applyChangesFromDom (yxml) {
         let expectedNode = yxml.get(i)
         if (expectedNode !== child.__yxml) {
           // 2.3 Not expected node
-          let index = yxml._content.findIndex(c => c.type === child.__yxml._model)
+          let index = yxml._content.findIndex(c => c.type[0] === child.__yxml._model[0] && c.type[1] === child.__yxml._model[1])
           if (index < 0) {
             // element is going to be deleted by its previous parent
             child.__yxml = null
