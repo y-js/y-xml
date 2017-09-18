@@ -553,7 +553,7 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
           domFilter
         }]
       } else {
-        throw new Error('Y.Xml requires an argument which is a string!')
+        throw new Error('Y.XmlElement requires an argument which is a string!')
       }
     },
     initType: function YXmlElementInitializer (os, model, init) {
