@@ -34,9 +34,10 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
           if (this.dom != null) {
             this._mutualExcluse(() => {
               if (event.type === 'insert') {
-                let nodes = event.values.map(v => v.getDom())
-                for (let i = nodes.length - 1; i >= 0; i--) {
-                  let dom = nodes[i]
+                for (let i = event.values.length - 1; i >= 0; i--) {
+                  let val = event.values[i]
+                  val.setDomFilter(this._domFilter)
+                  let dom = val.getDom()
                   let nextDom = null
                   if (this._content.length > event.index + i + 1) {
                     nextDom = this.get(event.index + i + 1).getDom()
