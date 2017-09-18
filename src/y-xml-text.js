@@ -85,6 +85,8 @@ export default function extendYXmlText (Y, _document, _MutationObserver) {
         })
       }
 
+      setDomFilter () {}
+
       _setDom (dom) {
         if (this.dom != null) {
           this._unbindFromDom()

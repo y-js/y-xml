@@ -1,4 +1,8 @@
 
+export function defaultDomFilter (node, attributes) {
+  return attributes
+}
+
 /*
  * 1. Check if any of the nodes was deleted
  * 2. Iterate over the children.
@@ -23,11 +27,14 @@ export function applyChangesFromDom (yxml) {
   // 2. iterate
   let childNodes = yxml.dom.childNodes
   let len = childNodes.length
-  for (let i = 0; i < len; i++) {
-    let child = childNodes[i]
+  for (let domCnt = 0, yCnt = 0; domCnt < len; domCnt++) {
+    let child = childNodes[domCnt]
     if (child.__yxml != null) {
-      if (i < yxml.length) {
-        let expectedNode = yxml.get(i)
+      if (child.__yxml === false) {
+        continue
+      }
+      if (yCnt < yxml.length) {
+        let expectedNode = yxml.get(yCnt)
         if (expectedNode !== child.__yxml) {
           // 2.3 Not expected node
           let index = yxml._content.findIndex(c => c.type[0] === child.__yxml._model[0] && c.type[1] === child.__yxml._model[1])
@@ -37,16 +44,18 @@ export function applyChangesFromDom (yxml) {
           } else {
             yxml.delete(index, 1)
           }
-          yxml.insertDomElements(i, [child])
+          yCnt += yxml.insertDomElements(yCnt, [child])
+        } else {
+          yCnt++
         }
         // if this is the expected node id, just continue
       } else {
         // 2.2 fill _conten with child nodes
-        yxml.insertDomElements(i, [child])
+        yCnt += yxml.insertDomElements(yCnt, [child])
       }
     } else {
       // 2.1 A new node was found
-      yxml.insertDomElements(i, [child])
+      yCnt += yxml.insertDomElements(yCnt, [child])
     }
   }
 }

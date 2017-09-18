@@ -1,17 +1,7 @@
 // import diff from 'fast-diff'
-import { applyChangesFromDom } from './utils.js'
+import { defaultDomFilter, applyChangesFromDom } from './utils.js'
 
 export default function extendXmlElement (Y, _document, _MutationObserver) {
-  function domToType (dom) {
-    if (dom.nodeType === _document.TEXT_NODE) {
-      return Y.XmlText(dom)
-    } else if (dom.nodeType === _document.ELEMENT_NODE) {
-      return Y.XmlElement(dom)
-    } else {
-      throw new Error('Unsupported node!')
-    }
-  }
-
   function yarrayEventHandler (op) {
     if (op.struct === 'Insert') {
       // when using indexeddb db adapter, the op could already exist (see y-js/y-indexeddb#2)
@@ -189,7 +179,7 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
   }
 
   class YXmlElement extends Y.utils.CustomType {
-    constructor (os, model, arrayContent, contents, opContents, dom) {
+    constructor (os, model, arrayContent, contents, opContents, dom, domFilter) {
       super()
       this._os = os
       this.os = os
@@ -216,6 +206,7 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
       this._eventListenerHandler = eventHandler
       this._domObserver = null
       this.dom = null
+      this._domFilter = domFilter
       if (dom != null) {
         this._setDom(dom)
       }
@@ -254,6 +245,7 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
               let nodes = event.nodes
               for (let i = nodes.length - 1; i >= 0; i--) {
                 let node = nodes[i]
+                node.setDomFilter(this._domFilter)
                 let dom = node.getDom()
                 let nextDom = null
                 if (this._content.length > event.index + i + 1) {
@@ -269,6 +261,14 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
           })
         }
       })
+    }
+
+    setDomFilter (f) {
+      this._domFilter = f
+      let len = this._content.length
+      for (let i = 0; i < len; i++) {
+        this.get(i).setDomFilter(f)
+      }
     }
 
     get length () {
@@ -320,13 +320,27 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
     }
 
     insertDomElements (pos, doms) {
+      let types = []
       doms.forEach(d => {
-        if (d.__yxml != null) {
+        if (d.__yxml != null && d.__yxml !== false) {
           d.__yxml._unbindFromDom()
         }
+        if (this._domFilter(d, []) !== null) {
+          let type
+          if (d.nodeType === _document.TEXT_NODE) {
+            type = Y.XmlText(d, this._domFilter)
+          } else if (d.nodeType === _document.ELEMENT_NODE) {
+            type = Y.XmlElement(d, this._domFilter)
+          } else {
+            throw new Error('Unsupported node!')
+          }
+          types.push(type)
+        } else {
+          d.__yxml = false
+        }
       })
-      let types = doms.map(domToType)
       this.insert(pos, types)
+      return types.length
     }
 
     insert (pos, types) {
@@ -383,13 +397,16 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
           let diffChildren = false
           mutations.forEach(mutation => {
             if (mutation.type === 'attributes') {
-              var name = mutation.attributeName
-              var val = mutation.target.getAttribute(mutation.attributeName)
-              if (this.getAttribute(name) !== val) {
-                if (val == null) {
-                  this.removeAttribute(name)
-                } else {
-                  this.setAttribute(name, val)
+              let name = mutation.attributeName
+              // check if filter accepts attribute
+              if (this._domFilter(this.dom, [name]).length > 0) {
+                var val = mutation.target.getAttribute(name)
+                if (this.getAttribute(name) !== val) {
+                  if (val == null) {
+                    this.removeAttribute(name)
+                  } else {
+                    this.setAttribute(name, val)
+                  }
                 }
               }
             } else if (mutation.type === 'childList') {
@@ -415,18 +432,17 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
         dom.__yxml = this
         // tag is already set in constructor
         // set attributes
-        for (var i = 0; i < dom.attributes.length; i++) {
-          var attr = dom.attributes[i]
-          this.setAttribute(attr.name, attr.value)
+        let attrNames = []
+        for (let i = 0; i < dom.attributes.length; i++) {
+          attrNames.push(dom.attributes[i])
         }
-        this.insert(0, Array.prototype.map.call(dom.childNodes, dom => {
-          if (dom.__yxml != null) {
-            // it is ok to reset here. It was probably moved from another node, and will be removed by that node
-            dom.__yxml._domObserver.disconnect()
-            dom.__yxml = null
-          }
-          return domToType(dom)
-        }))
+        attrNames = this._domFilter(dom, attrNames)
+        for (let i = 0; i < attrNames.length; i++) {
+          let attrName = attrNames[i]
+          let attrValue = dom.getAttribute(attrName)
+          this.setAttribute(attrName, attrValue)
+        }
+        this.insertDomElements(0, Array.prototype.slice.call(dom.childNodes))
         if (_MutationObserver != null) {
           this.dom = this._bindToDom(dom)
         }
@@ -517,16 +533,24 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
     name: 'XmlElement',
     class: YXmlElement,
     struct: 'Xml',
-    parseArguments: function (arg) {
+    parseArguments: function (arg, arg2) {
+      let domFilter
+      if (typeof arg2 === 'function') {
+        domFilter = arg2
+      } else {
+        domFilter = defaultDomFilter
+      }
       if (typeof arg === 'string') {
         return [this, {
           nodeName: arg.toUpperCase(),
-          dom: null
+          dom: null,
+          domFilter
         }]
       } else if (arg.nodeType === _document.ELEMENT_NODE) {
         return [this, {
           nodeName: arg.nodeName,
-          dom: arg
+          dom: arg,
+          domFilter
         }]
       } else {
         throw new Error('Y.Xml requires an argument which is a string!')
@@ -570,10 +594,10 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
           contents[name] = op.content[0]
         }
       }
-      return new YXmlElement(os, model, _content, contents, opContents, init != null ? init.dom : null)
+      return new YXmlElement(os, model, _content, contents, opContents, init != null ? init.dom : null, init != null ? init.domFilter : defaultDomFilter)
     },
     createType: function YXmlElementCreator (os, model, args) {
-      return new YXmlElement(os, model, [], {}, {}, args.dom)
+      return new YXmlElement(os, model, [], {}, {}, args.dom, args.domFilter)
     }
   }))
 }

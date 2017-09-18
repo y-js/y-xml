@@ -11,7 +11,6 @@ export default function extendXml (Y, _document, _MutationObserver) {
   if (typeof MutationObserver !== 'undefined') {
     _MutationObserver = MutationObserver
   } else {
-    console.warn('MutationObserver is not available. y-xml won\'t listen to changes on the DOM')
     _MutationObserver = null
   }
   yXmlElement(Y, _document, _MutationObserver)

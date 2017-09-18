@@ -1,4 +1,4 @@
-import { applyChangesFromDom } from './utils.js'
+import { defaultDomFilter, applyChangesFromDom } from './utils.js'
 
 export default function extendYXmlFragment (Y, _document, _MutationObserver) {
   Y.requestModules(['Array']).then(function () {
@@ -8,6 +8,7 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
         this.dom = null
         this._domObserver = null
         this._domObserverListener = null
+        this._domFilter = defaultDomFilter
         var token = true
         this._mutualExcluse = f => {
           // take and process current records
@@ -49,6 +50,13 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
               }
             })
           }
+        })
+      }
+
+      setDomFilter (f) {
+        this._domFilter = f
+        this.toArray().forEach(function (c) {
+          c.setDomFilter(f)
         })
       }
 
