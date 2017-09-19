@@ -434,7 +434,7 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
         // set attributes
         let attrNames = []
         for (let i = 0; i < dom.attributes.length; i++) {
-          attrNames.push(dom.attributes[i])
+          attrNames.push(dom.attributes[i].name)
         }
         attrNames = this._domFilter(dom, attrNames)
         for (let i = 0; i < attrNames.length; i++) {
