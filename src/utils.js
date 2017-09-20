@@ -1,4 +1,57 @@
 
+export function getAnchorViewPosition (scrollElement) {
+  if (scrollElement === null) {
+    return null
+  }
+  let anchor = document.getSelection().anchorNode
+  if (anchor != null) {
+    let top = getBoundingClientRect(anchor).top
+    if (top >= 0 && top <= document.documentElement.clientHeight) {
+      return {
+        anchor: anchor,
+        top: top
+      }
+    }
+  }
+  return {
+    anchor: null,
+    scrollTop: scrollElement.scrollTop,
+    scrollHeight: scrollElement.scrollHeight
+  }
+}
+
+// get BoundingClientRect that works on text nodes
+function getBoundingClientRect (element) {
+  if (element.getBoundingClientRect != null) {
+    // is element node
+    return element.getBoundingClientRect()
+  } else {
+    // is text node
+    if (element.parentNode == null) {
+      // range requires that text nodes have a parent
+      let span = document.createElement('span')
+      span.appendChild(element)
+    }
+    let range = document.createRange()
+    range.selectNode(element)
+    return range.getBoundingClientRect()
+  }
+}
+
+export function fixScrollPosition (scrollElement, fix, element, multiplicator) {
+  if (scrollElement !== null) {
+    if (fix.anchor === null) {
+      let rect = getBoundingClientRect(element)
+      if (rect.top <= 0 && scrollElement.scrollTop === fix.scrollTop) {
+        console.log('scrolltop fix')
+        scrollElement.scrollTop += scrollElement.scrollHeight - fix.scrollHeight
+      }
+    } else {
+      scrollElement.scrollTop += getBoundingClientRect(fix.anchor).top - fix.top
+    }
+  }
+}
+
 export function defaultDomFilter (node, attributes) {
   return attributes
 }

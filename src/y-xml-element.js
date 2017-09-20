@@ -1,5 +1,5 @@
 // import diff from 'fast-diff'
-import { defaultDomFilter, applyChangesFromDom } from './utils.js'
+import { getAnchorViewPosition, fixScrollPosition, defaultDomFilter, applyChangesFromDom } from './utils.js'
 
 export default function extendXmlElement (Y, _document, _MutationObserver) {
   function yarrayEventHandler (op) {
@@ -205,6 +205,7 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
       this._deepEventHandler = new Y.utils.EventListenerHandler()
       this._eventListenerHandler = eventHandler
       this._domObserver = null
+      this._scrollElement = null
       this.dom = null
       this._domFilter = domFilter
       if (dom != null) {
@@ -229,6 +230,7 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
       this.observe(event => {
         if (this.dom != null) {
           this._mutualExclude(() => {
+            let anchorViewPosition = getAnchorViewPosition(this._scrollElement)
             if (event.type === 'attributeChanged') {
               this.dom.setAttribute(event.name, event.value)
             } else if (event.type === 'attributeRemoved') {
@@ -238,21 +240,33 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
               for (let i = nodes.length - 1; i >= 0; i--) {
                 let node = nodes[i]
                 node.setDomFilter(this._domFilter)
+                node.enableSmartScrolling(this._scrollElement)
                 let dom = node.getDom()
                 let nextDom = null
                 if (this._content.length > event.index + i + 1) {
                   nextDom = this.get(event.index + i + 1).getDom()
                 }
                 this.dom.insertBefore(dom, nextDom)
+                fixScrollPosition(this._scrollElement, anchorViewPosition, dom, 1)
               }
             } else if (event.type === 'childRemoved') {
-              event.values.forEach(function (yxml) {
-                yxml.dom.remove()
-              })
+              for (let i = event.values.length - 1; i >= 0; i--) {
+                let dom = event.values[i].dom
+                dom.remove()
+                fixScrollPosition(this._scrollElement, anchorViewPosition, dom, -1)
+              }
             }
           })
         }
       })
+    }
+
+    enableSmartScrolling (scrollElement) {
+      this._scrollElement = scrollElement
+      let len = this._content.length
+      for (let i = 0; i < len; i++) {
+        this.get(i).enableSmartScrolling(scrollElement)
+      }
     }
 
     setDomFilter (f) {
@@ -320,9 +334,9 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
         if (this._domFilter(d, []) !== null) {
           let type
           if (d.nodeType === _document.TEXT_NODE) {
-            type = Y.XmlText(d, this._domFilter)
+            type = Y.XmlText(d)
           } else if (d.nodeType === _document.ELEMENT_NODE) {
-            type = Y.XmlElement(d, this._domFilter)
+            type = Y.XmlElement(d)
           } else {
             throw new Error('Unsupported node!')
           }
@@ -332,7 +346,13 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
         }
       })
       this.insert(pos, types)
-      return types.length
+      let len = types.length
+      for (let i = pos; i < pos + len; i++) {
+        let type = this.get(i)
+        type.setDomFilter(this._domFilter)
+        type.enableSmartScrolling(this._scrollElement)
+      }
+      return len
     }
 
     insert (pos, types) {

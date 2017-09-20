@@ -9,6 +9,7 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
         this._domObserver = null
         this._domObserverListener = null
         this._domFilter = defaultDomFilter
+        this._scrollElement = null
         var token = true
         this._mutualExcluse = f => {
           if (token) {
@@ -46,11 +47,13 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
         })
       }
 
-      setDomFilter (f) {
-        this._domFilter = f
-        this.toArray().forEach(function (c) {
-          c.setDomFilter(f)
-        })
+      setDomFilter () {
+        return Y.XmlElement.typeDefinition.class.prototype
+          .setDomFilter.apply(this, arguments)
+      }
+      enableSmartScrolling () {
+        return Y.XmlElement.typeDefinition.class.prototype
+          .enableSmartScrolling.apply(this, arguments)
       }
 
       insertDomElements () {
