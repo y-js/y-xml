@@ -68,13 +68,18 @@ export function defaultDomFilter (node, attributes) {
  *       !== actualId in the list
  */
 export function applyChangesFromDom (yxml) {
-  let undeletedKnownChildren = Array.prototype.map.call(yxml.dom.childNodes, child => child.__yxml)
-                                    .filter(id => id !== undefined)
+  // list of known children. anything else should be deleted
+  let knownChildren =
+    new Set(
+      Array.prototype.map.call(yxml.dom.childNodes, child => child.__yxml)
+      .filter(id => id !== undefined)
+    )
+  let deleteChildren = new Set()
   // 1. Check if any of the nodes was deleted
   for (let i = yxml._content.length - 1; i >= 0; i--) {
     let childType = yxml.get(i)
-    if (!undeletedKnownChildren.some(undel => undel === childType)) {
-      yxml.delete(i, 1)
+    if (!knownChildren.has(childType)) {
+      deleteChildren.add(childType)
     }
   }
   // 2. iterate
@@ -83,7 +88,8 @@ export function applyChangesFromDom (yxml) {
   for (let domCnt = 0, yCnt = 0; domCnt < len; domCnt++) {
     let child = childNodes[domCnt]
     if (child.__yxml != null) {
-      if (child.__yxml === false) {
+      if (child.__yxml === false || deleteChildren.has(child.__yxml)) {
+        // should be ignored or is going to be deleted
         continue
       }
       if (yCnt < yxml.length) {
@@ -109,6 +115,16 @@ export function applyChangesFromDom (yxml) {
     } else {
       // 2.1 A new node was found
       yCnt += yxml.insertDomElements(yCnt, [child])
+    }
+  }
+  // 3. actually delete deleteChildren
+  // We should not delete children before inserting because there
+  // are some weird scrolling issues: E.g. format first line bold.
+  // The formatted text will be out of viewport for the remote user.
+  for (let i = yxml._content.length - 1; i >= 0; i--) {
+    let childType = yxml.get(i)
+    if (deleteChildren.has(childType)) {
+      yxml.delete(i, 1)
     }
   }
 }
