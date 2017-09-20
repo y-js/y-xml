@@ -30,20 +30,12 @@ export default function extendYXmlText (Y, _document, _MutationObserver) {
         }
         var token = true
         this._mutualExcluse = f => {
-          // take and process current records
-          var records = this._domObserver.takeRecords()
-          if (records.length > 0) {
-            throw new Error('These changes should have been collected before!')
-          }
           if (token) {
             token = false
             try {
               f()
             } catch (e) {
-              // discard created records
-              this._domObserver.takeRecords()
-              token = true
-              throw e
+              console.error(e)
             }
             this._domObserver.takeRecords()
             token = true

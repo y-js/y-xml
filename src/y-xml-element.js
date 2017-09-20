@@ -214,20 +214,12 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
       // dom event is executed, or the yjs observer is executed
       var token = true
       this._mutualExclude = f => {
-        // take and process current records
-        var records = this._domObserver.takeRecords()
-        if (records.length > 0) {
-          throw new Error('These changes should have been collected before!')
-        }
         if (token) {
           token = false
           try {
             f()
           } catch (e) {
-            // discard created records
-            this._domObserver.takeRecords()
-            token = true
-            throw e
+            console.error(e)
           }
           this._domObserver.takeRecords()
           token = true
