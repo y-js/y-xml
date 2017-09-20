@@ -1,3 +1,37 @@
+export function reflectChangesOnDom (yxml) {
+  yxml.observe(event => {
+    if (yxml.dom != null) {
+      yxml._mutualExclude(() => {
+        let anchorViewPosition = getAnchorViewPosition(yxml._scrollElement)
+        if (event.type === 'attributeChanged') {
+          yxml.dom.setAttribute(event.name, event.value)
+        } else if (event.type === 'attributeRemoved') {
+          yxml.dom.removeAttribute(event.name)
+        } else if (event.type === 'childInserted' || event.type === 'insert') {
+          let nodes = event.values
+          for (let i = nodes.length - 1; i >= 0; i--) {
+            let node = nodes[i]
+            node.setDomFilter(yxml._domFilter)
+            node.enableSmartScrolling(yxml._scrollElement)
+            let dom = node.getDom()
+            let nextDom = null
+            if (yxml._content.length > event.index + i + 1) {
+              nextDom = yxml.get(event.index + i + 1).getDom()
+            }
+            yxml.dom.insertBefore(dom, nextDom)
+            fixScrollPosition(yxml._scrollElement, anchorViewPosition, dom, 1)
+          }
+        } else if (event.type === 'childRemoved' || event.type === 'delete') {
+          for (let i = event.values.length - 1; i >= 0; i--) {
+            let dom = event.values[i].dom
+            dom.remove()
+            fixScrollPosition(yxml._scrollElement, anchorViewPosition, dom, -1)
+          }
+        }
+      })
+    }
+  })
+}
 
 export function getAnchorViewPosition (scrollElement) {
   if (scrollElement === null) {
@@ -43,7 +77,6 @@ export function fixScrollPosition (scrollElement, fix, element, multiplicator) {
     if (fix.anchor === null) {
       let rect = getBoundingClientRect(element)
       if (rect.top <= 0 && scrollElement.scrollTop === fix.scrollTop) {
-        console.log('scrolltop fix')
         scrollElement.scrollTop += scrollElement.scrollHeight - fix.scrollHeight
       }
     } else {

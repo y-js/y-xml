@@ -1,4 +1,4 @@
-import { defaultDomFilter, applyChangesFromDom } from './utils.js'
+import { reflectChangesOnDom, defaultDomFilter, applyChangesFromDom } from './utils.js'
 
 export default function extendYXmlFragment (Y, _document, _MutationObserver) {
   Y.requestModules(['Array']).then(function () {
@@ -11,7 +11,7 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
         this._domFilter = defaultDomFilter
         this._scrollElement = null
         var token = true
-        this._mutualExcluse = f => {
+        this._mutualExclude = f => {
           if (token) {
             token = false
             try {
@@ -23,28 +23,7 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
             token = true
           }
         }
-        this.observe(event => {
-          if (this.dom != null) {
-            this._mutualExcluse(() => {
-              if (event.type === 'insert') {
-                for (let i = event.values.length - 1; i >= 0; i--) {
-                  let val = event.values[i]
-                  val.setDomFilter(this._domFilter)
-                  let dom = val.getDom()
-                  let nextDom = null
-                  if (this._content.length > event.index + i + 1) {
-                    nextDom = this.get(event.index + i + 1).getDom()
-                  }
-                  this.dom.insertBefore(dom, nextDom)
-                }
-              } else if (event.type === 'delete') {
-                event.values.forEach(function (yxml) {
-                  yxml.dom.remove()
-                })
-              }
-            })
-          }
-        })
+        reflectChangesOnDom(this)
       }
 
       setDomFilter () {
@@ -77,7 +56,7 @@ export default function extendYXmlFragment (Y, _document, _MutationObserver) {
         this.dom = dom
         dom.__yxml = this
         this._domObserverListener = () => {
-          this._mutualExcluse(() => applyChangesFromDom(this))
+          this._mutualExclude(() => applyChangesFromDom(this))
         }
         this._domObserver = new _MutationObserver(this._domObserverListener)
         this._domObserver.takeRecords() // discard made changes

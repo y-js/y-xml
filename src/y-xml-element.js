@@ -1,5 +1,5 @@
 // import diff from 'fast-diff'
-import { getAnchorViewPosition, fixScrollPosition, defaultDomFilter, applyChangesFromDom } from './utils.js'
+import { reflectChangesOnDom, defaultDomFilter, applyChangesFromDom } from './utils.js'
 
 export default function extendXmlElement (Y, _document, _MutationObserver) {
   function yarrayEventHandler (op) {
@@ -227,38 +227,7 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
         }
       }
       // Apply Y.Xml events to dom
-      this.observe(event => {
-        if (this.dom != null) {
-          this._mutualExclude(() => {
-            let anchorViewPosition = getAnchorViewPosition(this._scrollElement)
-            if (event.type === 'attributeChanged') {
-              this.dom.setAttribute(event.name, event.value)
-            } else if (event.type === 'attributeRemoved') {
-              this.dom.removeAttribute(event.name)
-            } else if (event.type === 'childInserted') {
-              let nodes = event.nodes
-              for (let i = nodes.length - 1; i >= 0; i--) {
-                let node = nodes[i]
-                node.setDomFilter(this._domFilter)
-                node.enableSmartScrolling(this._scrollElement)
-                let dom = node.getDom()
-                let nextDom = null
-                if (this._content.length > event.index + i + 1) {
-                  nextDom = this.get(event.index + i + 1).getDom()
-                }
-                this.dom.insertBefore(dom, nextDom)
-                fixScrollPosition(this._scrollElement, anchorViewPosition, dom, 1)
-              }
-            } else if (event.type === 'childRemoved') {
-              for (let i = event.values.length - 1; i >= 0; i--) {
-                let dom = event.values[i].dom
-                dom.remove()
-                fixScrollPosition(this._scrollElement, anchorViewPosition, dom, -1)
-              }
-            }
-          })
-        }
-      })
+      reflectChangesOnDom(this)
     }
 
     enableSmartScrolling (scrollElement) {
@@ -489,7 +458,7 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
           f({
             type: 'childInserted',
             index: event.index,
-            nodes: event.values
+            values: event.values
           })
         } else if (event.type === 'delete') {
           if (event.index !== undefined) {
