@@ -1,6 +1,7 @@
 /* global getSelection */
 
 import diff from 'fast-diff'
+import { getAnchorViewPosition, fixScrollPosition, getBoundingClientRect } from './utils.js'
 
 function fixPosition (event, pos) {
   if (event.index <= pos) {
@@ -63,7 +64,15 @@ export default function extendYXmlText (Y, _document, _MutationObserver) {
                   shouldUpdateSelection = true
                 }
               }
+              let anchorViewPosition = getAnchorViewPosition(this._scrollElement)
+              let anchorViewFix
+              if (anchorViewPosition.anchor !== null || getBoundingClientRect(this.dom).top <= 0) {
+                anchorViewFix = anchorViewPosition
+              } else {
+                anchorViewFix = null
+              }
               this.dom.nodeValue = this.toString()
+              fixScrollPosition(this._scrollElement, anchorViewFix)
               if (shouldUpdateSelection) {
                 selection.setBaseAndExtent(
                   anchorNode || selection.anchorNode,
@@ -79,7 +88,9 @@ export default function extendYXmlText (Y, _document, _MutationObserver) {
 
       setDomFilter () {}
 
-      enableSmartScrolling () {}
+      enableSmartScrolling (scrollElement) {
+        this._scrollElement = scrollElement
+      }
 
       _setDom (dom) {
         if (this.dom != null) {

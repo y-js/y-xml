@@ -67,7 +67,7 @@ export function getAnchorViewPosition (scrollElement) {
 }
 
 // get BoundingClientRect that works on text nodes
-function getBoundingClientRect (element) {
+export function getBoundingClientRect (element) {
   if (element.getBoundingClientRect != null) {
     // is element node
     return element.getBoundingClientRect()
