@@ -14,18 +14,30 @@ export function reflectChangesOnDom (yxml) {
             node.setDomFilter(yxml._domFilter)
             node.enableSmartScrolling(yxml._scrollElement)
             let dom = node.getDom()
+            let fixPosition
+            if (anchorViewPosition.anchor !== null || getBoundingClientRect(dom).top <= 0) {
+              fixPosition = anchorViewPosition
+            } else {
+              fixPosition = null
+            }
             let nextDom = null
             if (yxml._content.length > event.index + i + 1) {
               nextDom = yxml.get(event.index + i + 1).getDom()
             }
             yxml.dom.insertBefore(dom, nextDom)
-            fixScrollPosition(yxml._scrollElement, anchorViewPosition, dom, 1)
+            fixScrollPosition(yxml._scrollElement, fixPosition)
           }
         } else if (event.type === 'childRemoved' || event.type === 'delete') {
           for (let i = event.values.length - 1; i >= 0; i--) {
             let dom = event.values[i].dom
+            let fixPosition
+            if (anchorViewPosition.anchor !== null || getBoundingClientRect(dom).top <= 0) {
+              fixPosition = anchorViewPosition
+            } else {
+              fixPosition = null
+            }
             dom.remove()
-            fixScrollPosition(yxml._scrollElement, anchorViewPosition, dom, -1)
+            fixScrollPosition(yxml._scrollElement, fixPosition)
           }
         }
       })
@@ -72,11 +84,10 @@ function getBoundingClientRect (element) {
   }
 }
 
-export function fixScrollPosition (scrollElement, fix, element, multiplicator) {
-  if (scrollElement !== null) {
+export function fixScrollPosition (scrollElement, fix) {
+  if (scrollElement !== null && fix !== null) {
     if (fix.anchor === null) {
-      let rect = getBoundingClientRect(element)
-      if (rect.top <= 0 && scrollElement.scrollTop === fix.scrollTop) {
+      if (scrollElement.scrollTop === fix.scrollTop) {
         scrollElement.scrollTop += scrollElement.scrollHeight - fix.scrollHeight
       }
     } else {
@@ -107,12 +118,11 @@ export function applyChangesFromDom (yxml) {
       Array.prototype.map.call(yxml.dom.childNodes, child => child.__yxml)
       .filter(id => id !== undefined)
     )
-  let deleteChildren = new Set()
   // 1. Check if any of the nodes was deleted
   for (let i = yxml._content.length - 1; i >= 0; i--) {
     let childType = yxml.get(i)
     if (!knownChildren.has(childType)) {
-      deleteChildren.add(childType)
+      yxml.delete(i, 1)
     }
   }
   // 2. iterate
@@ -121,7 +131,7 @@ export function applyChangesFromDom (yxml) {
   for (let domCnt = 0, yCnt = 0; domCnt < len; domCnt++) {
     let child = childNodes[domCnt]
     if (child.__yxml != null) {
-      if (child.__yxml === false || deleteChildren.has(child.__yxml)) {
+      if (child.__yxml === false) {
         // should be ignored or is going to be deleted
         continue
       }
@@ -148,16 +158,6 @@ export function applyChangesFromDom (yxml) {
     } else {
       // 2.1 A new node was found
       yCnt += yxml.insertDomElements(yCnt, [child])
-    }
-  }
-  // 3. actually delete deleteChildren
-  // We should not delete children before inserting because there
-  // are some weird scrolling issues: E.g. format first line bold.
-  // The formatted text will be out of viewport for the remote user.
-  for (let i = yxml._content.length - 1; i >= 0; i--) {
-    let childType = yxml.get(i)
-    if (deleteChildren.has(childType)) {
-      yxml.delete(i, 1)
     }
   }
 }
