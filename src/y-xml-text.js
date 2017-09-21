@@ -67,7 +67,7 @@ export default function extendYXmlText (Y, _document, _MutationObserver) {
               }
               let anchorViewPosition = getAnchorViewPosition(this._scrollElement)
               let anchorViewFix
-              if (anchorViewPosition.anchor !== null || getBoundingClientRect(this.dom).top <= 0) {
+              if (anchorViewPosition !== null && (anchorViewPosition.anchor !== null || getBoundingClientRect(this.dom).top <= 0)) {
                 anchorViewFix = anchorViewPosition
               } else {
                 anchorViewFix = null

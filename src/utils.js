@@ -20,7 +20,9 @@ export function reflectChangesOnDom (yxml) {
               nextDom = yxml.get(event.index + i + 1).getDom()
             }
             yxml.dom.insertBefore(dom, nextDom)
-            if (anchorViewPosition.anchor !== null) {
+            if (anchorViewPosition === null) {
+              // nop
+            } else if (anchorViewPosition.anchor !== null) {
               // no scrolling when current selection
               if (!dom.contains(anchorViewPosition.anchor) && !anchorViewPosition.anchor.contains(dom)) {
                 fixPosition = anchorViewPosition
@@ -36,7 +38,9 @@ export function reflectChangesOnDom (yxml) {
           for (let i = event.values.length - 1; i >= 0; i--) {
             let dom = event.values[i].dom
             let fixPosition = null
-            if (anchorViewPosition.anchor !== null) {
+            if (anchorViewPosition === null) {
+              // nop
+            } else if (anchorViewPosition.anchor !== null) {
               // no scrolling when current selection
               if (!dom.contains(anchorViewPosition.anchor) && !anchorViewPosition.anchor.contains(dom)) {
                 fixPosition = anchorViewPosition
