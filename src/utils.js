@@ -15,26 +15,36 @@ export function reflectChangesOnDom (yxml) {
             node.enableSmartScrolling(yxml._scrollElement)
             let dom = node.getDom()
             let fixPosition
-            if (anchorViewPosition.anchor !== null || getBoundingClientRect(dom).top <= 0) {
-              fixPosition = anchorViewPosition
-            } else {
-              fixPosition = null
-            }
             let nextDom = null
             if (yxml._content.length > event.index + i + 1) {
               nextDom = yxml.get(event.index + i + 1).getDom()
             }
             yxml.dom.insertBefore(dom, nextDom)
+            if (anchorViewPosition.anchor !== null) {
+              // no scrolling when current selection
+              if (!dom.contains(anchorViewPosition.anchor) && !anchorViewPosition.anchor.contains(dom)) {
+                fixPosition = anchorViewPosition
+              }
+            } else if (getBoundingClientRect(dom).top <= 0) {
+              // adjust scrolling if modified element is out of view,
+              // there is no anchor element, and the browser did not adjust scrollTop (this is checked later)
+              fixPosition = anchorViewPosition
+            }
             fixScrollPosition(yxml._scrollElement, fixPosition)
           }
         } else if (event.type === 'childRemoved' || event.type === 'delete') {
           for (let i = event.values.length - 1; i >= 0; i--) {
             let dom = event.values[i].dom
-            let fixPosition
-            if (anchorViewPosition.anchor !== null || getBoundingClientRect(dom).top <= 0) {
+            let fixPosition = null
+            if (anchorViewPosition.anchor !== null) {
+              // no scrolling when current selection
+              if (!dom.contains(anchorViewPosition.anchor) && !anchorViewPosition.anchor.contains(dom)) {
+                fixPosition = anchorViewPosition
+              }
+            } else if (getBoundingClientRect(dom).top <= 0) {
+              // adjust scrolling if modified element is out of view,
+              // there is no anchor element, and the browser did not adjust scrollTop (this is checked later)
               fixPosition = anchorViewPosition
-            } else {
-              fixPosition = null
             }
             dom.remove()
             fixScrollPosition(yxml._scrollElement, fixPosition)
@@ -46,7 +56,7 @@ export function reflectChangesOnDom (yxml) {
 }
 
 export function getAnchorViewPosition (scrollElement) {
-  if (scrollElement === null) {
+  if (scrollElement == null) {
     return null
   }
   let anchor = document.getSelection().anchorNode

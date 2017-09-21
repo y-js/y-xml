@@ -26,6 +26,7 @@ export default function extendYXmlText (Y, _document, _MutationObserver) {
         this.dom = null
         this._domObserver = null
         this._domObserverListener = null
+        this._scrollElement = null
         if (args != null && args.dom != null) {
           this._setDom(args.dom)
         }
