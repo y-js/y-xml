@@ -14,7 +14,7 @@ export function reflectChangesOnDom (yxml) {
             node.setDomFilter(yxml._domFilter)
             node.enableSmartScrolling(yxml._scrollElement)
             let dom = node.getDom()
-            let fixPosition
+            let fixPosition = null
             let nextDom = null
             if (yxml._content.length > event.index + i + 1) {
               nextDom = yxml.get(event.index + i + 1).getDom()
