@@ -305,7 +305,9 @@ export default function extendXmlElement (Y, _document, _MutationObserver) {
           if (d.nodeType === _document.TEXT_NODE) {
             type = Y.XmlText(d)
           } else if (d.nodeType === _document.ELEMENT_NODE) {
-            type = Y.XmlElement(d)
+            // dom filter must be set befor dom is set!
+            // otherwise this element will not filter children
+            type = Y.XmlElement(d, this._domFilter)
           } else {
             throw new Error('Unsupported node!')
           }
